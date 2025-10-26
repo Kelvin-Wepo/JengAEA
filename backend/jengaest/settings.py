@@ -37,10 +37,9 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
+    'django.middleware.common.CommonMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    # 'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -127,30 +126,81 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Custom user model
 AUTH_USER_MODEL = 'accounts.User'
 
+# Authentication Backends
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+]
+
 # Django REST Framework
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.SessionAuthentication',
-        'rest_framework.authentication.TokenAuthentication',
-    ],
+    'DEFAULT_AUTHENTICATION_CLASSES': [],  # Empty list to disable authentication by default
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticated',
+        'rest_framework.permissions.AllowAny',
+    ],
+    'DEFAULT_PARSER_CLASSES': [
+        'rest_framework.parsers.JSONParser',
+        'rest_framework.parsers.FormParser',
+        'rest_framework.parsers.MultiPartParser',
+    ],
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.JSONRenderer',
+        'rest_framework.renderers.BrowsableAPIRenderer',
     ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
+    'UNAUTHENTICATED_USER': None,  # Disable automatic user creation for anonymous requests
+    'UNAUTHENTICATED_TOKEN': None,  # Disable token creation for anonymous requests
 }
 
 # CORS settings
-CORS_ALLOWED_ORIGINS = [
+CORS_ORIGIN_ALLOW_ALL = True
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_ALL_ORIGINS = True
+
+# Allow all headers and methods for development
+CORS_ALLOW_HEADERS = ['*']
+CORS_ALLOW_METHODS = ['*']
+
+# Disable CSRF for development
+CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
 ]
+CSRF_COOKIE_SECURE = False
+CSRF_COOKIE_HTTPONLY = False
+CSRF_USE_SESSIONS = False
+CSRF_COOKIE_NAME = 'csrftoken'
 
-CORS_ALLOW_CREDENTIALS = True
+# Session settings
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SECURE = False  # Set to True in production
 
 # Africa's Talking API settings
-AFRICAS_TALKING_USERNAME = config('AFRICAS_TALKING_USERNAME', default='')
-AFRICAS_TALKING_API_KEY = config('AFRICAS_TALKING_API_KEY', default='')
+AFRICAS_TALKING_USERNAME = 'kwepo'  # Use your username in production
+AFRICAS_TALKING_API_KEY = 'atsk_df21b2b69ada2c52b81d7ec2a29d77500103fb6286a5a2fa2c0e72f782f880e03b5885e6'
+ # Set to None for sandbox mode, 'JengaEst' for production
+
+# For sandbox testing, you need to register these numbers in Africa's Talking dashboard
+AFRICAS_TALKING_TEST_NUMBERS = [
+    '+254711XXXYYY',  # Add your test numbers here
+]
+
+# Logging configuration for SMS
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'loggers': {
+        'accounts.utils': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+        },
+    },
+}
 
 # Google Maps API settings
 GOOGLE_MAPS_API_KEY = config('GOOGLE_MAPS_API_KEY', default='')

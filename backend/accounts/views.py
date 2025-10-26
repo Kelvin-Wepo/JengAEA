@@ -20,20 +20,26 @@ from .serializers import (
 logger = logging.getLogger(__name__)
 
 
-@api_view(['POST'])
-@permission_classes([permissions.AllowAny])
 @csrf_exempt
 def simple_register(request):
-    """Simple function-based registration endpoint for testing"""
-    logger.debug(f"Simple register request data: {request.data}")
-    logger.debug(f"Request user: {request.user}")
-    logger.debug(f"Request auth: {request.auth}")
+    """Simplest possible registration endpoint for testing"""
+    if request.method == 'POST':
+        logger.debug("=== Simple Register Debug Info ===")
+        logger.debug(f"Request method: {request.method}")
+        logger.debug(f"Content type: {request.content_type}")
+        logger.debug(f"Headers: {dict(request.headers)}")
+        logger.debug("=== End Simple Register Debug Info ===")
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Simple registration endpoint reached successfully',
+            'data': {'received': True}
+        }, status=200)
     
     return JsonResponse({
-        'success': True,
-        'message': 'Simple registration endpoint reached successfully',
-        'data': request.data
-    })
+        'success': False,
+        'message': 'Method not allowed'
+    }, status=405)
 
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -45,11 +51,15 @@ class UserRegistrationView(generics.CreateAPIView):
     permission_classes = [permissions.AllowAny]
     
     def create(self, request, *args, **kwargs):
+        logger.debug("=== Registration Request Debug Info ===")
         logger.debug(f"Registration request data: {request.data}")
         logger.debug(f"Content type: {request.content_type}")
         logger.debug(f"Request method: {request.method}")
         logger.debug(f"Request user: {request.user}")
         logger.debug(f"Request auth: {request.auth}")
+        logger.debug(f"Request headers: {dict(request.headers)}")
+        logger.debug(f"Request META: {request.META}")
+        logger.debug("=== End Debug Info ===")
         
         serializer = self.get_serializer(data=request.data)
         
@@ -110,13 +120,21 @@ class UserRegistrationView(generics.CreateAPIView):
                 expires_at=timezone.now() + timedelta(minutes=10)
             )
             
-            # Log OTP for development (REMOVE IN PRODUCTION)
-            logger.warning(f"[DEV MODE] OTP for {phone_number}: {otp_code}")
+            # Send OTP via SMS
+            from .utils import send_sms
+            message = f"Your JengaEst verification code is: {otp_code}. Valid for 10 minutes."
+            sms_result = send_sms(phone_number, message)
             
-            # TODO: Integrate SMS service here
-            # self._send_sms(phone_number, otp_code)
+            if not sms_result['success']:
+                logger.error(f"Failed to send SMS: {sms_result['message']}")
+                # Log OTP for development as fallback (REMOVE IN PRODUCTION)
+                logger.warning(f"[DEV MODE] OTP for {phone_number}: {otp_code}")
             
-            return {'success': True, 'message': 'OTP sent successfully'}
+            return {
+                'success': True,
+                'message': 'OTP sent successfully',
+                'sms_sent': sms_result['success']
+            }
             
         except Exception as e:
             logger.error(f"OTP send error: {str(e)}", exc_info=True)

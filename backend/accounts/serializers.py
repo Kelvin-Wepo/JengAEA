@@ -38,27 +38,15 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         return attrs
     
     def create(self, validated_data):
-        """Create user with auto-generated username"""
+        """Create user"""
         # Remove password_confirm
         validated_data.pop('password_confirm')
         
-        # Generate username from email (before @)
-        email = validated_data['email']
-        base_username = email.split('@')[0]
-        username = base_username
-        
-        # Ensure unique username
-        counter = 1
-        while User.objects.filter(username=username).exists():
-            username = f"{base_username}{counter}"
-            counter += 1
-        
-        # Create user with generated username
+        # Create user
         user = User.objects.create_user(
-            username=username,
             email=validated_data['email'],
-            password=validated_data['password'],
             phone_number=validated_data['phone_number'],
+            password=validated_data['password'],
             role=validated_data['role'],
             first_name=validated_data.get('first_name', ''),
             last_name=validated_data.get('last_name', ''),
@@ -74,10 +62,10 @@ class UserSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = User
-        fields = ('id', 'username', 'email', 'phone_number', 'role', 
+        fields = ('id', 'email', 'phone_number', 'role', 
                   'first_name', 'last_name', 'location', 'company_name',
                   'is_verified', 'created_at', 'updated_at')
-        read_only_fields = ('id', 'username', 'created_at', 'updated_at', 'is_verified')
+        read_only_fields = ('id', 'created_at', 'updated_at', 'is_verified')
 
 
 class UserLoginSerializer(serializers.Serializer):
@@ -91,7 +79,7 @@ class UserLoginSerializer(serializers.Serializer):
         password = attrs.get('password')
         
         if email and password:
-            user = authenticate(username=email, password=password)
+            user = authenticate(email=email, password=password)
             if not user:
                 raise serializers.ValidationError('Invalid credentials')
             if not user.is_active:
@@ -108,7 +96,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = User
-        fields = ('id', 'username', 'email', 'phone_number', 'role', 'first_name', 
+        fields = ('id', 'email', 'phone_number', 'role', 'first_name', 
                  'last_name', 'location', 'company_name', 'is_verified', 'created_at')
         read_only_fields = ('id', 'email', 'is_verified', 'created_at')
 
