@@ -2,7 +2,7 @@ from django.urls import path
 from .views import (
     EstimateListView, EstimateDetailView, EstimateSummaryListView,
     calculate_cost, save_estimate, duplicate_estimate, share_estimate,
-    shared_estimate, estimate_statistics
+    shared_estimate, estimate_statistics, upload_estimate
 )
 
 urlpatterns = [
@@ -16,6 +16,7 @@ urlpatterns = [
     path('save/', save_estimate, name='save_estimate'),
     path('<int:estimate_id>/duplicate/', duplicate_estimate, name='duplicate_estimate'),
     path('<int:estimate_id>/share/', share_estimate, name='share_estimate'),
+    path('upload/', upload_estimate, name='estimate_upload'),
     
     # Shared estimates
     path('shared/<str:access_token>/', shared_estimate, name='shared_estimate'),

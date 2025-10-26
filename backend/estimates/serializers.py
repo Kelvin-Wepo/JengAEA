@@ -54,9 +54,10 @@ class EstimateSerializer(serializers.ModelSerializer):
             'project_template', 'project_template_data', 'project_name', 'project_description',
             'total_area', 'base_cost_per_sqm', 'location_multiplier', 'adjusted_cost_per_sqm',
             'total_estimated_cost', 'contingency_percentage', 'contingency_amount',
+            'source', 'original_filename',
             'status', 'is_public', 'items', 'revisions', 'shares', 'created_at', 'updated_at'
         )
-        read_only_fields = ('total_estimated_cost', 'adjusted_cost_per_sqm', 'contingency_amount', 'created_at', 'updated_at')
+        read_only_fields = ('total_estimated_cost', 'adjusted_cost_per_sqm', 'contingency_amount', 'created_at', 'updated_at', 'source', 'original_filename')
 
 
 class EstimateCreateSerializer(serializers.ModelSerializer):

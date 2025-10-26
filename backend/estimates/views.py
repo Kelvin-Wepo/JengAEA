@@ -16,6 +16,7 @@ from .serializers import (
     EstimateShareSerializer, CostCalculationSerializer
 )
 from projects.models import ProjectType, Location
+from django.core.exceptions import ObjectDoesNotExist
 
 
 class EstimateListView(generics.ListCreateAPIView):
@@ -339,6 +340,161 @@ def estimate_statistics(request):
         stats['by_project_type'][project_type] += 1
     
     return Response(stats)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def upload_estimate(request):
+    """Upload an Excel file (xlsx) to create an estimate and its items.
+
+    Expected formats (flexible):
+    - Sheet named 'Estimate' (single-row with columns: project_name, project_type, location, total_area, base_cost_per_sqm, location_multiplier, contingency_percentage)
+    - Sheet named 'Items' for item rows (category, name, description, quantity, unit, unit_price, notes)
+    If only one sheet is provided, the first row will be treated as estimate metadata and remaining rows (if they contain item columns) as items.
+    """
+    uploaded_file = request.FILES.get('file') or request.FILES.get('excel')
+    if not uploaded_file:
+        return Response({'error': 'No file uploaded'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        import pandas as pd
+
+        xl = pd.ExcelFile(uploaded_file)
+
+        # Parse estimate metadata
+        if 'Estimate' in xl.sheet_names:
+            df_meta = xl.parse('Estimate')
+            if df_meta.empty:
+                return Response({'error': 'Estimate sheet is empty'}, status=status.HTTP_400_BAD_REQUEST)
+            meta_row = df_meta.iloc[0].to_dict()
+        else:
+            # Fallback to first sheet
+            df_first = xl.parse(xl.sheet_names[0])
+            if df_first.empty:
+                return Response({'error': 'Uploaded file contains no usable data'}, status=status.HTTP_400_BAD_REQUEST)
+            # If first sheet looks like metadata (has project_name column) take first row
+            if 'project_name' in [c.lower() for c in df_first.columns]:
+                # normalize column names
+                df_first.columns = [c.lower() for c in df_first.columns]
+                meta_row = df_first.iloc[0].to_dict()
+                # remaining rows may be items
+                df_items = df_first.iloc[1:]
+            else:
+                return Response({'error': 'Could not detect estimate metadata in first sheet. Use sheet named "Estimate" or include a header with project_name.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Parse items
+        df_items = None
+        if 'Items' in xl.sheet_names:
+            df_items = xl.parse('Items')
+        elif 'df_items' in locals() and not df_items.empty:
+            pass
+        else:
+            # try second sheet
+            if len(xl.sheet_names) > 1:
+                candidate = xl.parse(xl.sheet_names[1])
+                if 'name' in [c.lower() for c in candidate.columns]:
+                    df_items = candidate
+            # else no items sheet
+
+        # Required metadata fields
+        required_meta = ['project_name', 'project_type', 'location', 'total_area', 'base_cost_per_sqm']
+        meta_lower = {k.lower(): v for k, v in meta_row.items()}
+        missing = [f for f in required_meta if f not in meta_lower or pd.isna(meta_lower.get(f))]
+        if missing:
+            return Response({'error': f'Missing required metadata fields: {missing}'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Resolve project_type and location (by id or name)
+        project_type_val = meta_lower.get('project_type')
+        location_val = meta_lower.get('location')
+
+        try:
+            if isinstance(project_type_val, (int, float)) and not pd.isna(project_type_val):
+                project_type = ProjectType.objects.get(id=int(project_type_val))
+            else:
+                project_type = ProjectType.objects.filter(name__iexact=str(project_type_val).strip()).first()
+        except ObjectDoesNotExist:
+            project_type = None
+
+        try:
+            if isinstance(location_val, (int, float)) and not pd.isna(location_val):
+                location = Location.objects.get(id=int(location_val))
+            else:
+                location = Location.objects.filter(name__iexact=str(location_val).strip()).first()
+        except ObjectDoesNotExist:
+            location = None
+
+        if not project_type or not location:
+            return Response({'error': 'Could not resolve project_type or location. Use existing names or ids.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Build estimate kwargs
+        estimate_kwargs = {
+            'user': request.user,
+            'project_type': project_type,
+            'location': location,
+            'project_name': str(meta_lower.get('project_name')).strip(),
+            'project_description': str(meta_lower.get('project_description', '') or ''),
+            'total_area': float(meta_lower.get('total_area')),
+            'base_cost_per_sqm': float(meta_lower.get('base_cost_per_sqm')),
+            'location_multiplier': float(meta_lower.get('location_multiplier') or 1.0),
+            'contingency_percentage': float(meta_lower.get('contingency_percentage') or 10.0),
+            'source': 'upload',
+            'original_filename': uploaded_file.name
+        }
+
+        estimate = Estimate.objects.create(**estimate_kwargs)
+
+        # Create items if present and collect per-row errors
+        created_items = []
+        row_errors = []
+        if df_items is not None and not df_items.empty:
+            # normalize column names
+            df_items.columns = [c.lower() for c in df_items.columns]
+            for idx, row in df_items.iterrows():
+                row_number = int(idx) + 2  # approximate Excel row number (header + 1)
+                try:
+                    # Basic validation
+                    name = row.get('name')
+                    if not name or pd.isna(name):
+                        raise ValueError('Missing item name')
+
+                    quantity = row.get('quantity')
+                    unit_price = row.get('unit_price')
+                    try:
+                        q = float(quantity) if not pd.isna(quantity) else 0.0
+                    except Exception:
+                        raise ValueError('Invalid quantity')
+                    try:
+                        up = float(unit_price) if not pd.isna(unit_price) else 0.0
+                    except Exception:
+                        raise ValueError('Invalid unit_price')
+
+                    item_kwargs = {
+                        'estimate': estimate,
+                        'category': str(row.get('category', 'other') or 'other'),
+                        'name': str(name)[:200],
+                        'description': str(row.get('description') or ''),
+                        'quantity': q,
+                        'unit': str(row.get('unit') or ''),
+                        'unit_price': up,
+                        'notes': str(row.get('notes') or '')
+                    }
+                    EstimateItem.objects.create(**item_kwargs)
+                    created_items.append(item_kwargs)
+                except Exception as e:
+                    row_errors.append({'row': row_number, 'error': str(e)})
+
+        response_payload = {
+            'message': 'Estimate uploaded successfully',
+            'estimate': EstimateSerializer(estimate).data,
+        }
+
+        if row_errors:
+            response_payload['row_errors'] = row_errors
+
+        return Response(response_payload, status=status.HTTP_201_CREATED)
+
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 

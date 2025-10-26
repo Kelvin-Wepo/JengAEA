@@ -18,6 +18,10 @@ class Estimate(models.Model):
     project_type = models.ForeignKey(ProjectType, on_delete=models.CASCADE, related_name='estimates')
     location = models.ForeignKey(Location, on_delete=models.CASCADE, related_name='estimates')
     project_template = models.ForeignKey(ProjectTemplate, on_delete=models.SET_NULL, null=True, blank=True)
+    # Source of estimate (manual form or uploaded file)
+    source = models.CharField(max_length=20, default='manual', help_text="How this estimate was created: manual or upload")
+    # If uploaded, keep original filename for reference (no file storage configured by default)
+    original_filename = models.CharField(max_length=255, null=True, blank=True, help_text="Original uploaded filename if created via upload")
     
     # Project details
     project_name = models.CharField(max_length=200)
