@@ -4,7 +4,6 @@ import { useAuth } from '../../contexts/AuthContext';
 import Button from '../common/Button';
 import Input from '../common/Input';
 import Card from '../common/Card';
-import LoadingSpinner from '../common/LoadingSpinner';
 import toast from 'react-hot-toast';
 
 const OTPVerification = ({ phoneNumber, onResend, onVerified, onBack }) => {

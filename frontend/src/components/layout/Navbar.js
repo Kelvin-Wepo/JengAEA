@@ -25,6 +25,8 @@ const Navbar = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
+  const navClasses = "bg-gradient-to-r from-blue-600 to-blue-800 text-white shadow-lg";
+
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: Home },
     { name: 'Projects', href: '/projects', icon: Building2 },
@@ -43,16 +45,16 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="bg-white shadow-sm border-b border-gray-200">
+    <div className={navClasses}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           {/* Logo and Brand */}
           <div className="flex items-center">
             <Link to="/" className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-gradient-to-r from-primary-600 to-primary-800 rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
                 <Building2 className="w-5 h-5 text-white" />
               </div>
-              <span className="text-xl font-bold text-gradient">JengaEafrica</span>
+              <span className="text-xl font-bold text-white">JengaEafrica</span>
             </Link>
           </div>
 
@@ -68,8 +70,8 @@ const Navbar = () => {
                     className={cn(
                       'flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors',
                       isActivePath(item.href)
-                        ? 'text-primary-600 bg-primary-50'
-                        : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
+                        ? 'bg-white bg-opacity-20 text-white'
+                        : 'text-gray-100 hover:bg-white hover:bg-opacity-10'
                     )}
                   >
                     <Icon className="w-4 h-4" />
@@ -102,17 +104,17 @@ const Navbar = () => {
                 <div className="relative">
                   <button
                     onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-                    className="flex items-center space-x-2 text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                    className="flex items-center space-x-2 text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white"
                   >
-                    <div className="w-8 h-8 bg-primary-600 rounded-full flex items-center justify-center">
+                    <div className="w-8 h-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
                       <span className="text-white font-medium text-sm">
                         {user?.first_name?.charAt(0) || user?.email?.charAt(0) || 'U'}
                       </span>
                     </div>
-                    <span className="hidden sm:block text-gray-700 font-medium">
+                    <span className="hidden sm:block text-white font-medium">
                       {user?.first_name || user?.email}
                     </span>
-                    <ChevronDown className="w-4 h-4 text-gray-400" />
+                    <ChevronDown className="w-4 h-4 text-white" />
                   </button>
 
                   {/* Profile Dropdown */}
@@ -125,14 +127,6 @@ const Navbar = () => {
                       >
                         <User className="w-4 h-4" />
                         <span>Profile</span>
-                      </Link>
-                      <Link
-                        to="/subscription"
-                        className="flex items-center space-x-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                        onClick={() => setIsProfileMenuOpen(false)}
-                      >
-                        <CreditCard className="w-4 h-4" />
-                        <span>Subscription</span>
                       </Link>
                       <Link
                         to="/settings"
@@ -156,44 +150,53 @@ const Navbar = () => {
                     </div>
                   )}
                 </div>
+
+                {/* New Estimate CTA */}
+                <div className="hidden md:block">
+                  <Link
+                    to="/estimates/new"
+                    className="inline-flex items-center px-4 py-2 rounded-md bg-white bg-opacity-20 text-white text-sm font-medium hover:bg-opacity-30 transition-colors"
+                  >
+                    <Calculator className="w-4 h-4 mr-2" />
+                    New Estimate
+                  </Link>
+                </div>
+
+                {/* Mobile menu button */}
+                <button
+                  onClick={() => setIsMenuOpen(!isMenuOpen)}
+                  className="md:hidden inline-flex items-center justify-center p-2 rounded-md text-white hover:bg-white hover:bg-opacity-10 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white"
+                >
+                  {isMenuOpen ? (
+                    <X className="w-6 h-6" />
+                  ) : (
+                    <Menu className="w-6 h-6" />
+                  )}
+                </button>
               </>
             ) : (
               <div className="flex items-center space-x-4">
                 <Link
                   to="/login"
-                  className="text-gray-700 hover:text-primary-600 px-3 py-2 rounded-md text-sm font-medium"
+                  className="text-white hover:text-gray-200 px-3 py-2 rounded-md text-sm font-medium"
                 >
                   Login
                 </Link>
                 <Link
                   to="/register"
-                  className="btn-primary"
+                  className="bg-white text-blue-600 hover:bg-opacity-90 px-4 py-2 rounded-md text-sm font-medium"
                 >
                   Get Started
                 </Link>
               </div>
-            )}
-
-            {/* Mobile menu button */}
-            {isAuthenticated && (
-              <button
-                onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="md:hidden inline-flex items-center justify-center p-2 rounded-md text-gray-700 hover:text-primary-600 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-500"
-              >
-                {isMenuOpen ? (
-                  <X className="w-6 h-6" />
-                ) : (
-                  <Menu className="w-6 h-6" />
-                )}
-              </button>
             )}
           </div>
         </div>
 
         {/* Mobile Navigation */}
         {isAuthenticated && isMenuOpen && (
-          <div className="md:hidden">
-            <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 border-t border-gray-200">
+          <div className="md:hidden border-t border-white border-opacity-20 py-3">
+            <div className="space-y-1">
               {navigation.map((item) => {
                 const Icon = item.icon;
                 return (
@@ -203,8 +206,8 @@ const Navbar = () => {
                     className={cn(
                       'flex items-center space-x-2 px-3 py-2 rounded-md text-base font-medium',
                       isActivePath(item.href)
-                        ? 'text-primary-600 bg-primary-50'
-                        : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
+                        ? 'bg-white bg-opacity-20 text-white'
+                        : 'text-gray-100 hover:bg-white hover:bg-opacity-10'
                     )}
                     onClick={() => setIsMenuOpen(false)}
                   >
@@ -225,11 +228,8 @@ const Navbar = () => {
           onClick={() => setIsProfileMenuOpen(false)}
         />
       )}
-    </nav>
+    </div>
   );
 };
 
 export default Navbar;
-
-
-

@@ -3,6 +3,9 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 
+// Components
+import FaviconLoader from './components/common/FaviconLoader';
+
 // Context Providers
 import { AuthProvider } from './contexts/AuthContext';
 import { SubscriptionProvider } from './contexts/SubscriptionContext';
@@ -22,6 +25,8 @@ import ReportsPage from './pages/ReportsPage';
 import SubscriptionPage from './pages/SubscriptionPage';
 import ProfilePage from './pages/ProfilePage';
 import AdminDashboardPage from './pages/admin/AdminDashboardPage';
+import DataGenerationPage from './pages/DataGenerationPage';
+import WalkthroughPage from './pages/WalkthroughPage';
 
 // Protected Route Component
 import ProtectedRoute from './components/auth/ProtectedRoute';
@@ -43,11 +48,21 @@ function App() {
       <AuthProvider>
         <SubscriptionProvider>
           <Router>
+            <FaviconLoader />
             <div className="min-h-screen bg-gray-50 flex flex-col">
               <Navbar />
               
               <main className="flex-1">
                 <Routes>
+                  {/* Add the DataGenerationPage route */}
+                  <Route
+                    path="/data-generation"
+                    element={
+                      <ProtectedRoute>
+                        <DataGenerationPage />
+                      </ProtectedRoute>
+                    }
+                  />
                   {/* Public Routes */}
                   <Route path="/" element={<HomePage />} />
                   <Route path="/login" element={<LoginPage />} />
@@ -77,6 +92,7 @@ function App() {
                       <EstimatePage />
                     </ProtectedRoute>
                   } />
+                  <Route path="/walkthrough" element={<WalkthroughPage />} />
                   
                   <Route path="/reports" element={
                     <ProtectedRoute>

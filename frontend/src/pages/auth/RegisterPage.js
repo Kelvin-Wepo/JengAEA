@@ -13,6 +13,7 @@ const RegisterPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [step, setStep] = useState(1); // 1: Registration, 2: OTP Verification
   const [registrationData, setRegistrationData] = useState(null);
   const { register: registerUser, sendOTP } = useAuth();
@@ -29,29 +30,36 @@ const RegisterPage = () => {
 
   const onSubmit = async (data) => {
     setIsLoading(true);
-    
+    setProgress(0);
+    let percent = 0;
+    const interval = setInterval(() => {
+      percent += Math.floor(Math.random() * 10) + 5;
+      if (percent >= 100) {
+        percent = 100;
+        clearInterval(interval);
+      }
+      setProgress(percent);
+    }, 120);
     try {
-      console.log('Submitting registration data:', data); 
-      
       // Register user
       const result = await registerUser(data);
-      
-      console.log('Registration result:', result);
-      
-      if (result.success) {
-        setRegistrationData({
-          user_id: result.data?.user_id,
-          phone_number: data.phone_number,
-        });
-        setStep(2);
-      } else {
-        // Handle validation errors if any
-        console.error('Registration failed:', result.error, result.errors);
-      }
+      setProgress(100);
+      setTimeout(() => {
+        setIsLoading(false);
+        if (result.success) {
+          setRegistrationData({
+            user_id: result.data?.user_id,
+            phone_number: data.phone_number,
+          });
+          setStep(2);
+        } else {
+          // Handle validation errors if any
+          console.error('Registration failed:', result.error, result.errors);
+        }
+      }, 400);
     } catch (error) {
-      console.error('Registration exception:', error);
-    } finally {
       setIsLoading(false);
+      console.error('Registration exception:', error);
     }
   };
 
@@ -79,7 +87,23 @@ const RegisterPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative">
+      {/* Loader Overlay */}
+      {isLoading && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm">
+          <div className="bg-white rounded-lg shadow-lg px-8 py-10 flex flex-col items-center animate-fadeIn">
+            <LoadingSpinner size="lg" className="mb-4 text-primary-600" />
+            <div className="text-xl font-semibold text-gray-800 mb-2">Creating your account...</div>
+            <div className="w-64 h-4 bg-gray-200 rounded-full overflow-hidden mb-2">
+              <div
+                className="h-full bg-gradient-to-r from-primary-500 to-secondary-500 transition-all duration-200"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <div className="text-lg font-mono text-primary-700">{progress}%</div>
+          </div>
+        </div>
+      )}
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="flex justify-center">
           <div className="flex items-center space-x-2">

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import { Eye, EyeOff, Mail, Lock, Building2 } from 'lucide-react';
+import { Eye, EyeOff, Building2 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
@@ -11,6 +11,7 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [progress, setProgress] = useState(0);
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -25,16 +26,45 @@ const LoginPage = () => {
 
   const onSubmit = async (data) => {
     setIsLoading(true);
+    setProgress(0);
+    // Simulate progress bar
+    let percent = 0;
+    const interval = setInterval(() => {
+      percent += Math.floor(Math.random() * 10) + 5;
+      if (percent >= 100) {
+        percent = 100;
+        clearInterval(interval);
+      }
+      setProgress(percent);
+    }, 120);
     const result = await login(data);
-    setIsLoading(false);
-    
-    if (result.success) {
-      navigate(from, { replace: true });
-    }
+    setProgress(100);
+    setTimeout(() => {
+      setIsLoading(false);
+      if (result.success) {
+        navigate(from, { replace: true });
+      }
+    }, 400);
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative">
+      {/* Loader Overlay */}
+      {isLoading && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm">
+          <div className="bg-white rounded-lg shadow-lg px-8 py-10 flex flex-col items-center animate-fadeIn">
+            <LoadingSpinner size="lg" className="mb-4 text-primary-600" />
+            <div className="text-xl font-semibold text-gray-800 mb-2">Logging you in...</div>
+            <div className="w-64 h-4 bg-gray-200 rounded-full overflow-hidden mb-2">
+              <div
+                className="h-full bg-gradient-to-r from-primary-500 to-secondary-500 transition-all duration-200"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <div className="text-lg font-mono text-primary-700">{progress}%</div>
+          </div>
+        </div>
+      )}
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="flex justify-center">
           <div className="flex items-center space-x-2">

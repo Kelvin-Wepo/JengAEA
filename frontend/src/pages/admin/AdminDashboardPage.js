@@ -1,5 +1,5 @@
 import React from 'react';
-import { Users, Building2, FileText, DollarSign, TrendingUp, AlertCircle } from 'lucide-react';
+import { Users, Building2, FileText, DollarSign, AlertCircle } from 'lucide-react';
 import Card from '../../components/common/Card';
 import { formatCurrency, formatNumber } from '../../utils/helpers';
 

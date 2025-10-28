@@ -123,7 +123,19 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (userData) => {
     try {
-      const response = await axios.post('/api/auth/register/', userData);
+      // Set up headers
+      const headers = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      };
+
+      // Try simple registration first for debugging
+      console.log('Attempting simple registration first...');
+      const testResponse = await axios.post('/api/auth/simple-register/', userData, { headers });
+      console.log('Simple registration response:', testResponse.data);
+
+      // If simple registration works, try the main registration
+      const response = await axios.post('/api/auth/register/', userData, { headers });
       
       // Check if backend returned success flag
       if (response.data.success) {
@@ -141,6 +153,7 @@ export const AuthProvider = ({ children }) => {
         };
       }
     } catch (error) {
+      console.error('Registration error:', error.response || error);
       // Extract error messages from Django response
       let message = 'Registration failed';
       let errorDetails = {};

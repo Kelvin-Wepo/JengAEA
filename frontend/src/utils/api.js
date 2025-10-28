@@ -72,6 +72,15 @@ export const estimatesAPI = {
   deleteEstimate: (id) => api.delete(`/estimates/${id}/`),
   calculateCost: (data) => api.post('/estimates/calculate/', data),
   saveEstimate: (data) => api.post('/estimates/save/', data),
+  uploadEstimate: (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post('/estimates/upload/', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+  },
   duplicateEstimate: (id) => api.post(`/estimates/${id}/duplicate/`),
   shareEstimate: (id, data) => api.post(`/estimates/${id}/share/`, data),
   getSharedEstimate: (token) => api.get(`/estimates/shared/${token}/`),

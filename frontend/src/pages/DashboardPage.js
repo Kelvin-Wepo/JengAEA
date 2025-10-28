@@ -1,14 +1,17 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { 
-  Plus, 
-  FileText, 
-  TrendingUp, 
-  Users, 
+import {
+  FileText,
+  Users,
   Building2,
   Calculator,
   ArrowRight,
-  Eye
+  Eye,
+  TrendingUp,
+  Clock,
+  Activity,
+  BarChart2,
+  PlusCircle
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
@@ -82,194 +85,244 @@ const DashboardPage = () => {
   ];
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">
-          Welcome back, {user?.first_name || 'User'}!
-        </h1>
-        <p className="mt-2 text-gray-600">
-          Here's an overview of your construction cost estimation activity.
-        </p>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      {/* Hero / Welcome */}
+      <div className="relative rounded-2xl overflow-hidden mb-8">
+        <div className="absolute inset-0 bg-gradient-to-r from-sky-600 to-indigo-600 opacity-95" />
+        <div className="relative z-10 p-6 md:p-8 lg:p-10 flex flex-col md:flex-row items-start md:items-center justify-between">
+          <div>
+            <h1 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight">
+              Good to see you, {user?.first_name || 'User'}
+            </h1>
+            <p className="mt-2 text-sky-100 max-w-xl">Overview of your projects, estimates and recent activity.</p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <Button variant="primary" size="md" as="a" href="/estimate/new">
+                <PlusCircle className="w-4 h-4 mr-2" /> New Estimate
+              </Button>
+              <Link to="/projects" className="inline-flex items-center px-4 py-2 rounded-md bg-white bg-opacity-10 text-white text-sm font-medium hover:bg-opacity-20 transition-colors">
+                Browse Projects
+              </Link>
+            </div>
+          </div>
+
+          <div className="mt-6 md:mt-0 grid grid-cols-2 gap-4 w-full md:w-auto">
+            <div className="bg-white bg-opacity-10 rounded-lg px-4 py-3 text-white">
+              <div className="text-xs text-sky-100">Estimates</div>
+              <div className="text-2xl font-semibold">{formatNumber(stats.totalEstimates)}</div>
+              <div className="text-xs text-sky-200">Total created</div>
+            </div>
+            <div className="bg-white bg-opacity-10 rounded-lg px-4 py-3 text-white">
+              <div className="text-xs text-sky-100">Portfolio Value</div>
+              <div className="text-2xl font-semibold">{formatCurrency(stats.totalValue)}</div>
+              <div className="text-xs text-sky-200">All projects</div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <Card>
-          <Card.Body className="text-center">
-            <div className="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-              <Calculator className="w-6 h-6 text-primary-600" />
-            </div>
-            <div className="text-2xl font-bold text-gray-900 mb-1">
-              {formatNumber(stats.totalEstimates)}
-            </div>
-            <div className="text-sm text-gray-600">Total Estimates</div>
-          </Card.Body>
-        </Card>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* Left/Main - stats and charts */}
+        <div className="lg:col-span-8">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-6">
+            <Card>
+              <Card.Body className="flex items-center space-x-4">
+                <div className="p-3 bg-sky-100 rounded-lg">
+                  <Calculator className="w-6 h-6 text-sky-600" />
+                </div>
+                <div>
+                  <div className="text-sm text-gray-500">Total Estimates</div>
+                  <div className="text-xl font-bold text-gray-900">{formatNumber(stats.totalEstimates)}</div>
+                </div>
+              </Card.Body>
+            </Card>
 
-        <Card>
-          <Card.Body className="text-center">
-            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-              <TrendingUp className="w-6 h-6 text-green-600" />
-            </div>
-            <div className="text-2xl font-bold text-gray-900 mb-1">
-              {formatCurrency(stats.totalValue)}
-            </div>
-            <div className="text-sm text-gray-600">Total Value</div>
-          </Card.Body>
-        </Card>
+            <Card>
+              <Card.Body className="flex items-center space-x-4">
+                <div className="p-3 bg-green-100 rounded-lg">
+                  <TrendingUp className="w-6 h-6 text-green-600" />
+                </div>
+                <div>
+                  <div className="text-sm text-gray-500">Total Value</div>
+                  <div className="text-xl font-bold text-gray-900">{formatCurrency(stats.totalValue)}</div>
+                </div>
+              </Card.Body>
+            </Card>
 
-        <Card>
-          <Card.Body className="text-center">
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-              <FileText className="w-6 h-6 text-blue-600" />
-            </div>
-            <div className="text-2xl font-bold text-gray-900 mb-1">
-              {formatNumber(stats.recentEstimates)}
-            </div>
-            <div className="text-sm text-gray-600">This Month</div>
-          </Card.Body>
-        </Card>
+            <Card>
+              <Card.Body className="flex items-center space-x-4">
+                <div className="p-3 bg-amber-100 rounded-lg">
+                  <Users className="w-6 h-6 text-amber-600" />
+                </div>
+                <div>
+                  <div className="text-sm text-gray-500">Avg. Cost</div>
+                  <div className="text-xl font-bold text-gray-900">{formatCurrency(stats.averageCost)}</div>
+                </div>
+              </Card.Body>
+            </Card>
+          </div>
 
-        <Card>
-          <Card.Body className="text-center">
-            <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-              <Users className="w-6 h-6 text-yellow-600" />
-            </div>
-            <div className="text-2xl font-bold text-gray-900 mb-1">
-              {formatCurrency(stats.averageCost)}
-            </div>
-            <div className="text-sm text-gray-600">Average Cost</div>
-          </Card.Body>
-        </Card>
-      </div>
+          {/* Charts */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <Card>
+              <Card.Header>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-medium text-gray-900">Estimates Over Time</h3>
+                  <div className="text-xs text-gray-500">Last 12 months</div>
+                </div>
+              </Card.Header>
+              <Card.Body>
+                <div className="h-48 bg-gradient-to-b from-white to-gray-50 rounded-md flex items-center justify-center text-gray-400">
+                  <BarChart2 className="w-12 h-12" />
+                </div>
+              </Card.Body>
+            </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Quick Actions */}
-        <div className="lg:col-span-1">
+            <Card>
+              <Card.Header>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-medium text-gray-900">Cost Breakdown</h3>
+                  <div className="text-xs text-gray-500">By category</div>
+                </div>
+              </Card.Header>
+              <Card.Body>
+                <div className="h-48 bg-gradient-to-b from-white to-gray-50 rounded-md flex items-center justify-center text-gray-400">
+                  <Activity className="w-12 h-12" />
+                </div>
+              </Card.Body>
+            </Card>
+          </div>
+
+          {/* Recent Estimates table */}
           <Card>
             <Card.Header>
-              <h2 className="text-lg font-semibold text-gray-900">Quick Actions</h2>
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-gray-900">Recent Estimates</h2>
+                <Link to="/estimates" className="text-sm text-sky-600 hover:text-sky-700 font-medium">View all</Link>
+              </div>
             </Card.Header>
-            <Card.Body className="space-y-4">
-              {quickActions.map((action, index) => {
+            <Card.Body>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead>
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Project</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Cost</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-3" />
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-100">
+                    {recentEstimates.map((estimate) => (
+                      <tr key={estimate.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900">{estimate.name}</div>
+                          <div className="text-xs text-gray-500">{new Date(estimate.created_at).toLocaleDateString()}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{estimate.location}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatCurrency(estimate.cost)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            estimate.status === 'approved' ? 'bg-green-100 text-green-800' :
+                            estimate.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>{estimate.status}</span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
+                          <Link to={`/estimate/${estimate.id}`} className="text-sky-600 hover:text-sky-700 font-medium inline-flex items-center">
+                            View <Eye className="w-4 h-4 ml-2" />
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card.Body>
+          </Card>
+        </div>
+
+        {/* Right column - quick actions, quota, activity */}
+        <aside className="lg:col-span-4 space-y-6">
+          <Card>
+            <Card.Header>
+              <h3 className="text-sm font-medium text-gray-900">Quick Actions</h3>
+            </Card.Header>
+            <Card.Body className="space-y-3">
+              {quickActions.map((action, idx) => {
                 const Icon = action.icon;
                 return (
-                  <Link
-                    key={index}
-                    to={action.href}
-                    className="flex items-center p-4 rounded-lg border border-gray-200 hover:border-primary-300 hover:shadow-sm transition-all group"
-                  >
-                    <div className={`w-10 h-10 ${action.color} rounded-lg flex items-center justify-center mr-4`}>
-                      <Icon className="w-5 h-5 text-white" />
+                  <Link key={idx} to={action.href} className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50">
+                    <div className="flex items-center space-x-3">
+                      <div className={`w-10 h-10 ${action.color} rounded-lg flex items-center justify-center`}>
+                        <Icon className="w-5 h-5 text-white" />
+                      </div>
+                      <div>
+                        <div className="text-sm font-medium text-gray-900">{action.title}</div>
+                        <div className="text-xs text-gray-500">{action.description}</div>
+                      </div>
                     </div>
-                    <div className="flex-1">
-                      <h3 className="font-medium text-gray-900 group-hover:text-primary-600">
-                        {action.title}
-                      </h3>
-                      <p className="text-sm text-gray-600">{action.description}</p>
-                    </div>
-                    <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-primary-600" />
+                    <ArrowRight className="w-4 h-4 text-gray-400" />
                   </Link>
                 );
               })}
             </Card.Body>
           </Card>
 
-          {/* Usage Quota */}
           {usage && (
-            <Card className="mt-6">
+            <Card>
               <Card.Header>
-                <h2 className="text-lg font-semibold text-gray-900">Usage Quota</h2>
+                <h3 className="text-sm font-medium text-gray-900">Usage</h3>
               </Card.Header>
               <Card.Body>
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="text-gray-600">Estimates Used</span>
-                      <span className="font-medium">
-                        {usage.estimates_used} / {usage.estimates_limit || '∞'}
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className={`h-2 rounded-full ${
-                          quotaStatus.percentage > 80 ? 'bg-red-500' : 
-                          quotaStatus.percentage > 60 ? 'bg-yellow-500' : 'bg-green-500'
-                        }`}
-                        style={{ width: `${Math.min(quotaStatus.percentage, 100)}%` }}
-                      />
-                    </div>
-                  </div>
-                  <div className="text-sm text-gray-600">
-                    {quotaStatus.isUnlimited ? (
-                      <span className="text-green-600 font-medium">Unlimited estimates</span>
-                    ) : (
-                      <span>
-                        {usage.estimates_remaining} estimates remaining
-                      </span>
-                    )}
-                  </div>
+                <div className="text-sm text-gray-600 mb-3">{usage.estimates_used} used — {usage.estimates_limit || '∞'} limit</div>
+                <div className="w-full bg-gray-100 rounded-full h-2 mb-3">
+                  <div className={`h-2 rounded-full ${quotaStatus.percentage > 80 ? 'bg-red-500' : quotaStatus.percentage > 60 ? 'bg-yellow-500' : 'bg-green-500'}`} style={{ width: `${Math.min(quotaStatus.percentage, 100)}%` }} />
                 </div>
+                <div className="text-xs text-gray-500">{quotaStatus.isUnlimited ? 'Unlimited' : `${usage.estimates_remaining} remaining`}</div>
               </Card.Body>
             </Card>
           )}
-        </div>
 
-        {/* Recent Estimates */}
-        <div className="lg:col-span-2">
           <Card>
             <Card.Header>
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-gray-900">Recent Estimates</h2>
-                <Link
-                  to="/estimates"
-                  className="text-sm text-primary-600 hover:text-primary-700 font-medium"
-                >
-                  View all
-                </Link>
-              </div>
+              <h3 className="text-sm font-medium text-gray-900">Recent Activity</h3>
             </Card.Header>
-            <Card.Body>
-              <div className="space-y-4">
-                {recentEstimates.map((estimate) => (
-                  <div
-                    key={estimate.id}
-                    className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-primary-300 transition-colors"
-                  >
-                    <div className="flex-1">
-                      <h3 className="font-medium text-gray-900">{estimate.name}</h3>
-                      <p className="text-sm text-gray-600">{estimate.location}</p>
-                      <div className="flex items-center mt-1">
-                        <span className="text-sm text-gray-500">
-                          {new Date(estimate.created_at).toLocaleDateString()}
-                        </span>
-                        <span className={`ml-3 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          estimate.status === 'approved' ? 'bg-green-100 text-green-800' :
-                          estimate.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-gray-100 text-gray-800'
-                        }`}>
-                          {estimate.status}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-semibold text-gray-900">
-                        {formatCurrency(estimate.cost)}
-                      </div>
-                      <Link
-                        to={`/estimate/${estimate.id}`}
-                        className="text-sm text-primary-600 hover:text-primary-700 font-medium flex items-center mt-1"
-                      >
-                        View <Eye className="w-3 h-3 ml-1" />
-                      </Link>
-                    </div>
+            <Card.Body className="space-y-3">
+              <div className="space-y-2">
+                <div className="flex items-start space-x-3">
+                  <div className="mt-1 p-2 bg-gray-100 rounded-md">
+                    <Clock className="w-4 h-4 text-gray-600" />
                   </div>
-                ))}
+                  <div>
+                    <div className="text-sm text-gray-900">Estimate "3-Bedroom House" approved</div>
+                    <div className="text-xs text-gray-500">2 days ago</div>
+                  </div>
+                </div>
+
+                <div className="flex items-start space-x-3">
+                  <div className="mt-1 p-2 bg-gray-100 rounded-md">
+                    <Activity className="w-4 h-4 text-gray-600" />
+                  </div>
+                  <div>
+                    <div className="text-sm text-gray-900">New project added: Commercial Building</div>
+                    <div className="text-xs text-gray-500">5 days ago</div>
+                  </div>
+                </div>
+
+                <div className="flex items-start space-x-3">
+                  <div className="mt-1 p-2 bg-gray-100 rounded-md">
+                    <FileText className="w-4 h-4 text-gray-600" />
+                  </div>
+                  <div>
+                    <div className="text-sm text-gray-900">Report generated: Monthly summary</div>
+                    <div className="text-xs text-gray-500">1 week ago</div>
+                  </div>
+                </div>
               </div>
             </Card.Body>
           </Card>
-        </div>
+        </aside>
       </div>
     </div>
   );
