@@ -107,6 +107,10 @@ def calculate_cost(request):
     
     serializer = CostCalculationSerializer(data=request.data)
     if not serializer.is_valid():
+        # Log validation errors for debugging
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error('Cost calculation serializer invalid: %s', serializer.errors)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     try:
@@ -115,24 +119,24 @@ def calculate_cost(request):
         total_area = serializer.validated_data['total_area']
         contingency_percentage = serializer.validated_data.get('contingency_percentage', 10.00)
         custom_items = serializer.validated_data.get('custom_items', [])
-        
+
         # Calculate base cost
         base_cost_per_sqm = project_type.base_cost_per_sqm
         adjusted_cost_per_sqm = base_cost_per_sqm * location.cost_multiplier
         total_estimated_cost = adjusted_cost_per_sqm * total_area
-        
+
         # Calculate contingency
         contingency_amount = (total_estimated_cost * contingency_percentage) / 100
-        
+
         # Calculate custom items total
         custom_items_total = 0
         if custom_items:
             for item in custom_items:
                 custom_items_total += item['quantity'] * item['unit_price']
-        
+
         # Final total
         final_total = total_estimated_cost + contingency_amount + custom_items_total
-        
+
         return Response({
             'project_type': {
                 'id': project_type.id,
@@ -162,10 +166,14 @@ def calculate_cost(request):
                 'custom_items': custom_items_total
             }
         })
-        
+
     except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.exception('Error calculating cost: %s', e)
+        # Return a generic error message but log full traceback to server logs
         return Response(
-            {'error': str(e)}, 
+            {'error': 'Server error while calculating estimate'}, 
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 

@@ -17,6 +17,14 @@ DEBUG = config('DEBUG', default=True, cast=bool)
 
 ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0', 'testserver']
 
+# CORS settings
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+
 # Application definition
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -133,7 +141,10 @@ AUTHENTICATION_BACKENDS = [
 
 # Django REST Framework
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': [],  # Empty list to disable authentication by default
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+    ], 
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.AllowAny',
     ],
@@ -148,8 +159,8 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
-    'UNAUTHENTICATED_USER': None,  # Disable automatic user creation for anonymous requests
-    'UNAUTHENTICATED_TOKEN': None,  # Disable token creation for anonymous requests
+    'UNAUTHENTICATED_USER': None, 
+    'UNAUTHENTICATED_TOKEN': None, 
 }
 
 # CORS settings
@@ -173,16 +184,16 @@ CSRF_COOKIE_NAME = 'csrftoken'
 
 # Session settings
 SESSION_COOKIE_HTTPONLY = True
-SESSION_COOKIE_SECURE = False  # Set to True in production
+SESSION_COOKIE_SECURE = False
 
 # Africa's Talking API settings
-AFRICAS_TALKING_USERNAME = 'kwepo'  # Use your username in production
+AFRICAS_TALKING_USERNAME = 'Kwepo' 
 AFRICAS_TALKING_API_KEY = 'atsk_df21b2b69ada2c52b81d7ec2a29d77500103fb6286a5a2fa2c0e72f782f880e03b5885e6'
- # Set to None for sandbox mode, 'JengaEst' for production
+AFRICAS_TALKING_SENDER_ID ='AFTKNG'
 
 # For sandbox testing, you need to register these numbers in Africa's Talking dashboard
 AFRICAS_TALKING_TEST_NUMBERS = [
-    '+254711XXXYYY',  # Add your test numbers here
+    '+254711XXXYYY',  # Add your test Enumbers here
 ]
 
 # Logging configuration for SMS
@@ -218,5 +229,5 @@ EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
 
 # File upload settings
-FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB
-DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  

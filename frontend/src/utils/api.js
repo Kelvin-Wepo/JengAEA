@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Create axios instance with base configuration
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || '/api',
+  baseURL: process.env.REACT_APP_API_URL || '',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
@@ -51,14 +51,14 @@ export const authAPI = {
 };
 
 export const projectsAPI = {
-  getProjectTypes: (params) => api.get('/projects/types/', { params }),
-  getProjectTemplates: (params) => api.get('/projects/templates/', { params }),
-  getLocations: (params) => api.get('/projects/locations/', { params }),
-  getMaterials: (params) => api.get('/projects/materials/', { params }),
-  getMaterialPrices: (params) => api.get('/projects/materials/prices/', { params }),
-  getLaborPrices: (params) => api.get('/projects/labor/prices/', { params }),
+  getProjectTypes: (params) => api.get('/api/projects/types/', { params }),
+  getProjectTemplates: (params) => api.get('/api/projects/templates/', { params }),
+  getLocations: (params) => api.get('/api/projects/locations/', { params }),
+  getMaterials: (params) => api.get('/api/projects/materials/', { params }),
+  getMaterialPrices: (params) => api.get('/api/projects/materials/prices/', { params }),
+  getLaborPrices: (params) => api.get('/api/projects/labor/prices/', { params }),
   getProjectCostBreakdown: (projectTypeId, params) => 
-    api.get(`/projects/types/${projectTypeId}/breakdown/`, { params }),
+    api.get(`/api/projects/types/${projectTypeId}/breakdown/`, { params }),
   getFilterOptions: () => api.get('/projects/filter-options/'),
   searchProjects: (params) => api.get('/projects/search/', { params }),
   getLocationDetails: (locationId) => api.get(`/projects/locations/${locationId}/`),
@@ -70,12 +70,12 @@ export const estimatesAPI = {
   createEstimate: (data) => api.post('/estimates/', data),
   updateEstimate: (id, data) => api.patch(`/estimates/${id}/`, data),
   deleteEstimate: (id) => api.delete(`/estimates/${id}/`),
-  calculateCost: (data) => api.post('/estimates/calculate/', data),
+  calculateCost: (data) => api.post('/api/estimates/calculate/', data),
   saveEstimate: (data) => api.post('/estimates/save/', data),
   uploadEstimate: (file) => {
     const formData = new FormData();
     formData.append('file', file);
-    return api.post('/estimates/upload/', formData, {
+    return api.post('/api/estimates/upload/', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }

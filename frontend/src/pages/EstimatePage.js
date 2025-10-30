@@ -15,25 +15,76 @@ const EstimatePage = () => {
     location: '',
     dataPeriod: '3months',
     projectDescription: '',
+    total_area: '',
   });
   const [mode, setMode] = useState('manual');
-  const [counties, setCounties] = useState([]);
+  const [projectTypes, setProjectTypes] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [charCount, setCharCount] = useState(0);
   const [validationErrors, setValidationErrors] = useState({});
-  const [uploadedPlan, setUploadedPlan] = useState(null);
+  const [estimationResult, setEstimationResult] = useState(null);
+
+  // Local county list (use this instead of fetching from backend)
+  const COUNTY_LIST = [
+    { id: 1, county_name: 'Mombasa' },
+    { id: 2, county_name: 'Kwale' },
+    { id: 3, county_name: 'Kilifi' },
+    { id: 4, county_name: 'Tana River' },
+    { id: 5, county_name: 'Lamu' },
+    { id: 6, county_name: 'Taita-Taveta' },
+    { id: 7, county_name: 'Garissa' },
+    { id: 8, county_name: 'Wajir' },
+    { id: 9, county_name: 'Mandera' },
+    { id: 10, county_name: 'Marsabit' },
+    { id: 11, county_name: 'Isiolo' },
+    { id: 12, county_name: 'Meru' },
+    { id: 13, county_name: 'Tharaka-Nithi' },
+    { id: 14, county_name: 'Embu' },
+    { id: 15, county_name: 'Kitui' },
+    { id: 16, county_name: 'Machakos' },
+    { id: 17, county_name: 'Makueni' },
+    { id: 18, county_name: 'Nyandarua' },
+    { id: 19, county_name: 'Nyeri' },
+    { id: 20, county_name: 'Kirinyaga' },
+    { id: 21, county_name: "Murang'a" },
+    { id: 22, county_name: 'Kiambu' },
+    { id: 23, county_name: 'Turkana' },
+    { id: 24, county_name: 'West Pokot' },
+    { id: 25, county_name: 'Samburu' },
+    { id: 26, county_name: 'Trans Nzoia' },
+    { id: 27, county_name: 'Uasin Gishu' },
+    { id: 28, county_name: 'Elgeyo-Marakwet' },
+    { id: 29, county_name: 'Nandi' },
+    { id: 30, county_name: 'Baringo' },
+    { id: 31, county_name: 'Laikipia' },
+    { id: 32, county_name: 'Nakuru' },
+    { id: 33, county_name: 'Narok' },
+    { id: 34, county_name: 'Kajiado' },
+    { id: 35, county_name: 'Kericho' },
+    { id: 36, county_name: 'Bomet' },
+    { id: 37, county_name: 'Kakamega' },
+    { id: 38, county_name: 'Vihiga' },
+    { id: 39, county_name: 'Bungoma' },
+    { id: 40, county_name: 'Busia' },
+    { id: 41, county_name: 'Siaya' },
+    { id: 42, county_name: 'Kisumu' },
+    { id: 43, county_name: 'Homa Bay' },
+    { id: 44, county_name: 'Migori' },
+    { id: 45, county_name: 'Kisii' },
+    { id: 46, county_name: 'Nyamira' },
+    { id: 47, county_name: 'Nairobi' }
+  ];
 
   useEffect(() => {
-    const fetchCounties = async () => {
+    const fetchProjectTypes = async () => {
       try {
-        const { data } = await projectsAPI.getLocations();
-        setCounties(data);
+        const { data } = await projectsAPI.getProjectTypes();
+        setProjectTypes(data);
       } catch (err) {
-        console.error('Failed to fetch counties:', err);
-        toast.error('Failed to load counties');
+        console.error('Failed to fetch project types:', err);
       }
     };
-    fetchCounties();
+    fetchProjectTypes();
   }, []);
 
   const handleInputChange = (e) => {
@@ -53,6 +104,7 @@ const EstimatePage = () => {
     if (!formData.projectName.trim()) errors.projectName = 'Project name is required';
     if (!formData.buildingType) errors.buildingType = 'Building type is required';
     if (!formData.location) errors.location = 'Location is required';
+    if (!formData.total_area || Number(formData.total_area) <= 0) errors.total_area = 'Total area must be greater than 0';
     if (formData.projectDescription.length > 150) {
       errors.projectDescription = 'Description must not exceed 150 characters';
     }
@@ -68,12 +120,36 @@ const EstimatePage = () => {
     }
 
     setIsLoading(true);
-    try {
-      const response = await estimatesAPI.createEstimate(formData);
-      toast.success('Estimate created successfully');
+  try {
+      // Find a project_type id that matches selected buildingType category
+      let project_type_id = null;
+      if (projectTypes && projectTypes.length > 0) {
+        const found = projectTypes.find(pt => pt.category === formData.buildingType);
+        project_type_id = found ? found.id : projectTypes[0].id;
+      }
+
+      const payload = {
+        project_type_id: project_type_id,
+        location_id: parseInt(formData.location, 10),
+        total_area: parseFloat(formData.total_area),
+        contingency_percentage: 10.0
+      };
+
+      const { data } = await estimatesAPI.calculateCost(payload);
+      setEstimationResult(data);
+      toast.success('Estimate calculated');
     } catch (err) {
-      console.error('Failed to create estimate:', err);
-      toast.error(err?.response?.data?.message || 'Failed to create estimate');
+      // Improved error logging for debugging
+      console.error('Failed to calculate estimate. Error object:', err);
+      if (err.response) {
+        console.error('Response status:', err.response.status);
+        console.error('Response data:', err.response.data);
+      } else if (err.request) {
+        console.error('No response received. Request:', err.request);
+      } else {
+        console.error('Request setup error:', err.message);
+      }
+      toast.error(err?.response?.data?.error || err?.response?.data?.message || 'Failed to calculate estimate');
     } finally {
       setIsLoading(false);
     }
@@ -82,10 +158,41 @@ const EstimatePage = () => {
   const handlePlanUpload = async (file) => {
     setIsLoading(true);
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      const response = await estimatesAPI.uploadEstimate(formData);
-      setUploadedPlan(response.data);
+      // Pass file object directly - api wrapper will build FormData
+  const response = await estimatesAPI.uploadEstimate(file);
+      // Build estimationResult from uploaded estimate (server saved calculated fields)
+      const est = response.data.estimate || response.data;
+      if (est) {
+        // compute breakdown similar to backend calculate_cost
+        const adjusted = parseFloat(est.adjusted_cost_per_sqm || (est.base_cost_per_sqm * (est.location_multiplier || 1)));
+        const total_area = parseFloat(est.total_area || 0);
+        const base_total = adjusted * total_area;
+        const contingency = parseFloat(est.contingency_amount || (base_total * (est.contingency_percentage || 10) / 100));
+        const custom_items_total = 0;
+        const final_total = parseFloat(est.total_estimated_cost || (base_total + contingency + custom_items_total));
+
+        setEstimationResult({
+          project_type: est.project_type_data || null,
+          location: est.location_data || null,
+          calculations: {
+            total_area,
+            base_cost_per_sqm: parseFloat(est.base_cost_per_sqm || 0),
+            adjusted_cost_per_sqm: adjusted,
+            base_total_cost: base_total,
+            contingency_percentage: parseFloat(est.contingency_percentage || 10),
+            contingency_amount: contingency,
+            custom_items_total,
+            final_total_cost: final_total
+          },
+          breakdown: {
+            materials: base_total * 0.6,
+            labor: base_total * 0.3,
+            equipment: base_total * 0.1,
+            contingency: contingency,
+            custom_items: custom_items_total
+          }
+        });
+      }
       toast.success('Plan uploaded successfully');
     } catch (err) {
       console.error('Failed to upload plan:', err);
@@ -93,6 +200,15 @@ const EstimatePage = () => {
       throw err;
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const formatKES = (value) => {
+    try {
+      const v = Number(value) || 0;
+      return new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 2 }).format(v);
+    } catch (e) {
+      return `Ksh ${value}`;
     }
   };
 
@@ -211,9 +327,9 @@ const EstimatePage = () => {
                         className={`input w-full ${validationErrors.location ? 'border-red-500' : ''}`}
                       >
                         <option value="">Select county</option>
-                        {counties && counties.length > 0 ? (
-                          counties.map(county => (
-                            <option key={county.id} value={county.county_code}>
+                        {COUNTY_LIST && COUNTY_LIST.length > 0 ? (
+                          COUNTY_LIST.map(county => (
+                            <option key={county.id} value={county.id}>
                               {county.county_name}
                             </option>
                           ))
@@ -241,6 +357,20 @@ const EstimatePage = () => {
                         <option value="9months">9 Months</option>
                         <option value="12months">12 Months</option>
                       </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Total Area (sqm)*</label>
+                      <Input
+                        type="number"
+                        name="total_area"
+                        value={formData.total_area || ''}
+                        onChange={handleInputChange}
+                        placeholder="Enter total area in sqm"
+                        error={validationErrors.total_area}
+                      />
+                      {validationErrors.total_area && (
+                        <p className="mt-1 text-sm text-red-600">{validationErrors.total_area}</p>
+                      )}
                     </div>
                   </div>
 
@@ -285,30 +415,30 @@ const EstimatePage = () => {
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <div className="flex justify-between mb-2">
                     <span className="text-gray-600">Base Cost</span>
-                    <span className="font-medium">Ksh0.00</span>
+                    <span className="font-medium">{formatKES(estimationResult?.calculations?.base_total_cost || 0)}</span>
                   </div>
                   <div className="flex justify-between mb-2">
                     <span className="text-gray-600">Materials</span>
-                    <span className="font-medium">Ksh0.00</span>
+                    <span className="font-medium">{formatKES(estimationResult?.breakdown?.materials || 0)}</span>
                   </div>
                   <div className="flex justify-between mb-2">
                     <span className="text-gray-600">Labor</span>
-                    <span className="font-medium">Ksh0.00</span>
+                    <span className="font-medium">{formatKES(estimationResult?.breakdown?.labor || 0)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Equipment</span>
-                    <span className="font-medium">Ksh0.00</span>
+                    <span className="font-medium">{formatKES(estimationResult?.breakdown?.equipment || 0)}</span>
                   </div>
                 </div>
 
                 <div className="bg-primary-50 p-4 rounded-lg">
                   <div className="flex justify-between mb-2">
-                    <span className="text-primary-600">Contingency (10%)</span>
-                    <span className="font-medium text-primary-600">Ksh0.00</span>
+                    <span className="text-primary-600">Contingency ({estimationResult?.calculations?.contingency_percentage || 0}%)</span>
+                    <span className="font-medium text-primary-600">{formatKES(estimationResult?.calculations?.contingency_amount || 0)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-primary-800 font-semibold">Total Estimated Cost</span>
-                    <span className="font-bold text-primary-800">Ksh0.00</span>
+                    <span className="font-bold text-primary-800">{formatKES(estimationResult?.calculations?.final_total_cost || 0)}</span>
                   </div>
                 </div>
               </div>

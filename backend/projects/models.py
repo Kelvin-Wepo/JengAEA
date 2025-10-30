@@ -128,11 +128,10 @@ class Location(models.Model):
         ('047', 'Nairobi'),
     ]
     
-    county_code = models.CharField(max_length=3, choices=COUNTY_CHOICES, unique=True, default='047')
-    county_name = models.CharField(max_length=100, default='Nairobi')
+    county_code = models.CharField(max_length=3, choices=COUNTY_CHOICES, unique=True)
+    county_name = models.CharField(max_length=100)
     region = models.CharField(
         max_length=50,
-        default='Central',
         help_text="Region (e.g., Central, Rift Valley, Western, etc.)"
     )
     major_towns = models.TextField(

@@ -62,10 +62,11 @@ class LocationListView(generics.ListAPIView):
     
     queryset = Location.objects.filter(is_active=True)
     serializer_class = LocationSerializer
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    filterset_fields = ['country', 'region']
-    search_fields = ['name', 'city', 'region']
-    ordering = ['country', 'region', 'city']
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['region']
+    search_fields = ['county_name', 'region', 'major_towns']
+    ordering_fields = ['county_name', 'region']
+    ordering = ['county_code']
 
 
 class MaterialPriceListView(generics.ListAPIView):

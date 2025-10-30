@@ -10,7 +10,8 @@ class LocationSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Location
-        fields = ('id', 'name', 'city', 'region', 'country', 'latitude', 'longitude', 'cost_multiplier')
+        fields = ('id', 'county_code', 'county_name', 'region', 'major_towns', 
+                 'latitude', 'longitude', 'cost_multiplier', 'is_active')
 
 
 class MaterialCategorySerializer(serializers.ModelSerializer):
