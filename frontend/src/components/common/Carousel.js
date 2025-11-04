@@ -1,103 +1,153 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
-const Carousel = ({ slides, autoplayInterval = 5000 }) => {
-  const [currentSlide, setCurrentSlide] = useState(0);
+const defaultSlides = [
+  {
+    // local image path - place authentic African construction images in public/images/africa/
+    image: '/images/africa/construction1.jpg',
+    title: 'Construction Site — Nairobi',
+    description: 'Local contractors building residential and commercial projects',
+  },
+  {
+    image: '/images/africa/construction2.jpg',
+    title: 'Infrastructure Works — Lagos',
+    description: 'Roads, bridges and urban renewal projects',
+  },
+  {
+    image: '/images/africa/construction3.jpg',
+    title: 'Commercial Development — Accra',
+    description: 'Commercial and mixed-use developments across the region',
+  },
+  {
+    image: '/images/africa/construction4.jpg',
+    title: 'Community Builds — Dar es Salaam',
+    description: 'Local community and housing projects',
+  },
+];
 
-  // Autoplay functionality
+export default function Carousel({ slides = defaultSlides, autoplayInterval = 5000 }) {
+  const [current, setCurrent] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+  const touchStartX = useRef(null);
+  const liveRef = useRef(null);
+
+  const goTo = useCallback((idx) => {
+    setCurrent((idx + slides.length) % slides.length);
+  }, [slides.length]);
+
+  const next = useCallback(() => goTo(current + 1), [goTo, current]);
+  const prev = useCallback(() => goTo(current - 1), [goTo, current]);
+
   useEffect(() => {
+    if (isPaused || slides.length <= 1) return;
     const timer = setInterval(() => {
-      setCurrentSlide((current) => (current + 1) % slides.length);
+      setCurrent((c) => (c + 1) % slides.length);
     }, autoplayInterval);
-
     return () => clearInterval(timer);
-  }, [slides.length, autoplayInterval]);
+  }, [autoplayInterval, isPaused, slides.length]);
 
-  const goToSlide = (index) => {
-    setCurrentSlide(index);
+  useEffect(() => {
+    const handleKey = (e) => {
+      if (e.key === 'ArrowLeft') prev();
+      if (e.key === 'ArrowRight') next();
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [next, prev]);
+
+  useEffect(() => {
+    if (liveRef.current) {
+      const slide = slides[current];
+      liveRef.current.textContent = slide?.title || `Slide ${current + 1}`;
+    }
+  }, [current, slides]);
+
+  const handleTouchStart = (e) => {
+    touchStartX.current = e.touches[0].clientX;
+    setIsPaused(true);
   };
 
-  const goToPrevious = () => {
-    setCurrentSlide((current) => (current - 1 + slides.length) % slides.length);
-  };
-
-  const goToNext = () => {
-    setCurrentSlide((current) => (current + 1) % slides.length);
+  const handleTouchEnd = (e) => {
+    if (!touchStartX.current) return;
+    const delta = e.changedTouches[0].clientX - touchStartX.current;
+    if (Math.abs(delta) > 50) {
+      delta > 0 ? prev() : next();
+    }
+    touchStartX.current = null;
+    setIsPaused(false);
   };
 
   return (
-    <div className="relative h-full w-full overflow-hidden">
-      {/* Slides */}
-      <div 
-        className="relative h-full transition-transform duration-500 ease-out"
-        style={{ transform: `translateX(-${currentSlide * 100}%)` }}
-      >
-        <div className="absolute inset-0 flex">
-          {slides.map((slide, index) => (
-            <div
-              key={index}
-              className="relative h-full w-full flex-shrink-0"
-              style={{ left: `${index * 100}%` }}
-            >
-              <div 
-                className="absolute inset-0 bg-cover bg-center"
-                style={{ backgroundImage: `url(${slide.image})` }}
-              >
-                {/* Gradient Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-br from-primary-900/80 via-primary-800/70 to-secondary-900/75" />
-              </div>
-              
-              {/* Content */}
+    <div
+      className="relative w-full max-w-7xl mx-auto rounded-xl overflow-hidden"
+      role="region"
+      aria-roledescription="carousel"
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
+      <div className="sr-only" aria-live="polite" ref={liveRef} />
+      
+      <div className="relative h-64 sm:h-80 md:h-96">
+        <div 
+          className="absolute inset-0 flex transition-transform duration-500 ease-out" 
+          style={{ transform: `translateX(-${current * 100}%)` }}
+        >
+          {slides.map((slide, idx) => (
+            <div key={idx} className="w-full flex-shrink-0 relative">
+              <img
+                src={slide.image}
+                alt={slide.title || `Slide ${idx + 1}`}
+                loading={idx === current || idx === (current + 1) % slides.length ? 'eager' : 'lazy'}
+                onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = 'https://images.unsplash.com/photo-1529429618124-0c2f0a1df5a0?auto=format&fit=crop&w=1400&q=80'; }}
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-br from-black/30 via-black/10 to-transparent" />
               <div className="relative z-10 h-full flex items-center justify-center text-white">
                 <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-                  <h2 className="text-3xl md:text-4xl font-bold mb-4 transform transition-all duration-700 translate-y-0 opacity-100">
-                    {slide.title}
-                  </h2>
-                  <p className="text-lg md:text-xl text-neutral-100 mb-8">
-                    {slide.description}
-                  </p>
-                  {slide.cta && (
-                    <button className="bg-secondary-500 text-white px-8 py-3 rounded-lg font-medium hover:bg-secondary-600 transition-colors">
-                      {slide.cta}
-                    </button>
+                  {slide.title && (
+                    <h2 className="text-2xl md:text-3xl font-bold mb-2">{slide.title}</h2>
+                  )}
+                  {slide.description && (
+                    <p className="text-sm md:text-lg text-white/90">{slide.description}</p>
                   )}
                 </div>
               </div>
             </div>
           ))}
         </div>
-      </div>
 
-      {/* Navigation Arrows */}
-      <button
-        onClick={goToPrevious}
-        className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 flex items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors backdrop-blur-sm"
-      >
-        <ChevronLeft className="w-6 h-6" />
-      </button>
-      <button
-        onClick={goToNext}
-        className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 flex items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors backdrop-blur-sm"
-      >
-        <ChevronRight className="w-6 h-6" />
-      </button>
+        <button
+          className="absolute left-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 flex items-center justify-center rounded-full bg-black/40 text-white hover:bg-black/60"
+          type="button"
+          onClick={prev}
+          aria-label="Previous slide"
+        >
+          <ChevronLeft className="w-5 h-5" />
+        </button>
+        <button
+          className="absolute right-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 flex items-center justify-center rounded-full bg-black/40 text-white hover:bg-black/60"
+          type="button"
+          onClick={next}
+          aria-label="Next slide"
+        >
+          <ChevronRight className="w-5 h-5" />
+        </button>
 
-      {/* Indicators */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex space-x-2">
-        {slides.map((_, index) => (
-          <button
-            key={index}
-            onClick={() => goToSlide(index)}
-            className={`w-2.5 h-2.5 rounded-full transition-colors ${
-              index === currentSlide
-                ? 'bg-secondary-500'
-                : 'bg-white/50 hover:bg-white/75'
-            }`}
-          />
-        ))}
+        <div className="absolute left-1/2 -translate-x-1/2 bottom-4 z-20 flex gap-2">
+          {slides.map((_, idx) => (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => goTo(idx)}
+              aria-label={`Go to slide ${idx + 1}`}
+              aria-current={idx === current}
+              className={`w-3 h-3 rounded-full ${idx === current ? 'bg-white' : 'bg-white/50'}`}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );
-};
-
-export default Carousel;
+}

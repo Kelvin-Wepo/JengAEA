@@ -28,11 +28,22 @@ const OTPVerification = ({ phoneNumber, onResend, onVerified, onBack }) => {
     }
 
     setIsLoading(true);
-    const result = await verifyOTP(phoneNumber, otp);
-    setIsLoading(false);
-
-    if (result.success) {
-      onVerified();
+    try {
+      console.log('Submitting OTP:', { phoneNumber, otp });
+      const result = await verifyOTP(phoneNumber, otp);
+      console.log('OTP verification result:', result);
+      
+      if (result?.success) {
+        toast.success('Phone number verified successfully!');
+        onVerified();
+      } else {
+        toast.error(result?.message || 'Verification failed');
+      }
+    } catch (error) {
+      console.error('OTP verification error:', error);
+      toast.error(error.response?.data?.message || 'Verification failed');
+    } finally {
+      setIsLoading(false);
     }
   };
 

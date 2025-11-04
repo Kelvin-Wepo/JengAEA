@@ -6,8 +6,9 @@ export const cn = (...inputs) => {
 };
 
 // Format currency
-export const formatCurrency = (amount, currency = 'USD') => {
-  return new Intl.NumberFormat('en-US', {
+export const formatCurrency = (amount, currency = 'KES') => {
+  // Default to Kenyan Shilling formatting
+  return new Intl.NumberFormat('en-KE', {
     style: 'currency',
     currency: currency,
     minimumFractionDigits: 2,

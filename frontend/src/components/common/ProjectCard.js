@@ -12,6 +12,9 @@ const ProjectCard = ({
   tags = [],
   featured = false,
   className = '',
+  onStart, // optional click handler for Start Estimate
+  loading = false,
+  startLabel = 'Start Estimate'
 }) => {
   return (
     <Card className={cn('h-full flex flex-col justify-between', className)}>
@@ -42,9 +45,15 @@ const ProjectCard = ({
 
       <div className="px-6 pb-6">
         <div className="flex items-center justify-between">
-          <Button as="a" href={href} variant="primary" className="px-4 py-2">
-            Start Estimate
-          </Button>
+          {onStart ? (
+            <Button onClick={() => onStart()} variant="primary" className="px-4 py-2" disabled={!!loading}>
+              {loading ? 'Starting...' : startLabel}
+            </Button>
+          ) : (
+            <Button as="a" href={href} variant="primary" className="px-4 py-2">
+              {startLabel}
+            </Button>
+          )}
           <a href={href} className="text-sm text-gray-500 hover:text-gray-700 ml-3">Learn more</a>
         </div>
       </div>

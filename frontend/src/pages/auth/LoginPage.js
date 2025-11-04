@@ -43,6 +43,14 @@ const LoginPage = () => {
       setIsLoading(false);
       if (result.success) {
         navigate(from, { replace: true });
+      } else if (result.requiresVerification && result.phoneNumber) {
+        // Redirect to OTP verification
+        navigate('/verify-otp', { 
+          state: { 
+            phoneNumber: result.phoneNumber,
+            from: from
+          }
+        });
       }
     }, 400);
   };

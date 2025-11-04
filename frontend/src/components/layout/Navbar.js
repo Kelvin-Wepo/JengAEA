@@ -154,7 +154,7 @@ const Navbar = () => {
                 {/* New Estimate CTA */}
                 <div className="hidden md:block">
                   <Link
-                    to="/estimates/new"
+                    to="/estimate/new"
                     className="inline-flex items-center px-4 py-2 rounded-md bg-white bg-opacity-20 text-white text-sm font-medium hover:bg-opacity-30 transition-colors"
                   >
                     <Calculator className="w-4 h-4 mr-2" />

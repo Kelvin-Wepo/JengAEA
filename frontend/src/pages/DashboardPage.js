@@ -87,8 +87,17 @@ const DashboardPage = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       {/* Hero / Welcome */}
-      <div className="relative rounded-2xl overflow-hidden mb-8">
-        <div className="absolute inset-0 bg-gradient-to-r from-sky-600 to-indigo-600 opacity-95" />
+      <div 
+        className="relative rounded-2xl overflow-hidden mb-8 min-h-[300px]"
+        style={{
+          backgroundImage: "url('/images/hero-bg.svg')",
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat'
+        }}
+      >
+  <div className="absolute inset-0 bg-black/25" />
+  <div className="absolute inset-0 bg-gradient-to-br from-sky-900/25 via-sky-900/10 to-transparent" />
         <div className="relative z-10 p-6 md:p-8 lg:p-10 flex flex-col md:flex-row items-start md:items-center justify-between">
           <div>
             <h1 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight">

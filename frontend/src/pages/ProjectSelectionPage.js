@@ -1,11 +1,77 @@
-import React from 'react';
-import { Search, Home, Briefcase, Map } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Search, Home, Briefcase, Map, Play } from 'lucide-react';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import Input from '../components/common/Input';
 import ProjectCard from '../components/common/ProjectCard';
+import { projectsAPI, estimatesAPI } from '../utils/api';
+import toast from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import StartEstimateModal from '../components/common/StartEstimateModal';
 
 const ProjectSelectionPage = () => {
+  const [templates, setTemplates] = useState([]);
+  const [locations, setLocations] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [startingTemplate, setStartingTemplate] = useState(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const navigate = useNavigate();
+  const { user } = useAuth();
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const tResp = await projectsAPI.getProjectTemplates();
+        const lResp = await projectsAPI.getLocations();
+        const templatesData = Array.isArray(tResp.data) ? tResp.data : (tResp.data?.results || []);
+        const locationsData = Array.isArray(lResp.data) ? lResp.data : (lResp.data?.results || []);
+        setTemplates(templatesData);
+        setLocations(locationsData);
+      } catch (err) {
+        console.error('Failed to load templates or locations', err);
+        toast.error('Failed to load templates. Try refreshing.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  const openStartModal = (template) => {
+    setStartingTemplate(template);
+    setModalOpen(true);
+  };
+
+  const handleConfirmStart = async ({ location, total_area }) => {
+    // Called when modal confirm pressed
+    if (!startingTemplate) return;
+    setCreating(true);
+    try {
+      const payload = {
+        project_template: startingTemplate.id,
+        project_name: startingTemplate.name,
+        project_description: startingTemplate.description || '',
+        total_area: total_area || startingTemplate.total_area || 100,
+        location: location,
+      };
+
+      const { data } = await estimatesAPI.createEstimate(payload);
+      toast.success('Estimate started');
+      setModalOpen(false);
+      // navigate to estimate editor
+      navigate(`/estimate/${data.id}`);
+    } catch (err) {
+      console.error('Failed to start estimate', err);
+      const message = err?.response?.data?.error || err?.response?.data?.message || 'Failed to start estimate';
+      toast.error(message);
+    } finally {
+      setCreating(false);
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       <div className="mb-8">
@@ -46,67 +112,70 @@ const ProjectSelectionPage = () => {
 
       {/* Templates Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        <ProjectCard
-          title="3-Bedroom House"
-          description="Typical single-family home with foundation, framing and finishes"
-          icon={Home}
-          color="bg-sky-500"
-          href="/estimate/new?template=3-bedroom"
-          tags={["Residential", "Medium"]}
-          featured
-        />
+        {templates && templates.length > 0 ? (
+          templates.map((tpl) => (
+            <ProjectCard
+              key={tpl.id}
+              title={tpl.name}
+              description={tpl.description}
+              icon={tpl.icon ? Home : Home}
+              color={tpl.color || 'bg-sky-500'}
+              tags={[tpl.category || 'Template']}
+              onStart={() => openStartModal(tpl)}
+              loading={creating && startingTemplate?.id === tpl.id}
+            />
+          ))
+        ) : (
+          /* Fallback static cards when templates not available */
+          <>
+            <ProjectCard
+              title="3-Bedroom House"
+              description="Typical single-family home with foundation, framing and finishes"
+              icon={Home}
+              color="bg-sky-500"
+              href="/estimate/new?template=3-bedroom"
+              tags={["Residential", "Medium"]}
+              featured
+            />
 
-        <ProjectCard
-          title="Commercial Office Block"
-          description="Multi-storey office building with core & shell estimate"
-          icon={Briefcase}
-          color="bg-green-500"
-          href="/estimate/new?template=office-block"
-          tags={["Commercial", "Large"]}
-        />
+            <ProjectCard
+              title="Commercial Office Block"
+              description="Multi-storey office building with core & shell estimate"
+              icon={Briefcase}
+              color="bg-green-500"
+              href="/estimate/new?template=office-block"
+              tags={["Commercial", "Large"]}
+            />
 
-        <ProjectCard
-          title="Perimeter Wall"
-          description="Boundary wall with concrete footing and plaster finishes"
-          icon={Map}
-          color="bg-indigo-500"
-          href="/estimate/new?template=perimeter-wall"
-          tags={["Infrastructure", "Small"]}
-        />
-
-        {/* Placeholder for more templates - can be mapped from data */}
-        <ProjectCard
-          title="Retail Shop Fit-out"
-          description="Internal fit-out estimate for retail spaces"
-          icon={Briefcase}
-          color="bg-amber-500"
-          href="/estimate/new?template=retail-fitout"
-          tags={["Commercial", "Medium"]}
-        />
-
-        <ProjectCard
-          title="Apartment Block"
-          description="Multi-unit residential block with communal services"
-          icon={Home}
-          color="bg-pink-500"
-          href="/estimate/new?template=apartment-block"
-          tags={["Residential", "Large"]}
-        />
-
-        <ProjectCard
-          title="Roadworks (1km)"
-          description="Typical 1km road construction with subbase and asphalt"
-          icon={Map}
-          color="bg-emerald-500"
-          href="/estimate/new?template=road-1km"
-          tags={["Infrastructure", "Large"]}
-        />
+            <ProjectCard
+              title="Perimeter Wall"
+              description="Boundary wall with concrete footing and plaster finishes"
+              icon={Map}
+              color="bg-indigo-500"
+              href="/estimate/new?template=perimeter-wall"
+              tags={["Infrastructure", "Small"]}
+            />
+          </>
+        )}
       </div>
 
       <div className="mt-10 text-center">
         <p className="text-gray-600 mb-4">Don't see a template that fits? Create a custom project with your own parameters.</p>
         <Button variant="secondary">Create Custom Project</Button>
       </div>
+
+      {/* Start Estimate modal */}
+      {startingTemplate && (
+        <StartEstimateModal
+          isOpen={modalOpen}
+          onRequestClose={() => setModalOpen(false)}
+          template={startingTemplate}
+          locations={locations}
+          defaultLocationId={user?.profile?.location || (locations[0]?.id ?? null)}
+          onConfirm={handleConfirmStart}
+          loading={creating}
+        />
+      )}
     </div>
   );
 };

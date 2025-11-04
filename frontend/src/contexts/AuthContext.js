@@ -100,39 +100,84 @@ export const AuthProvider = ({ children }) => {
   const login = async (credentials) => {
     dispatch({ type: 'LOGIN_START' });
     try {
-      const response = await axios.post('/api/auth/login/', credentials);
-      const { token, user } = response.data;
-      
-      localStorage.setItem('token', token);
-      axios.defaults.headers.common['Authorization'] = `Token ${token}`;
-      
-      dispatch({
-        type: 'LOGIN_SUCCESS',
-        payload: { user, token },
+      // Get CSRF token first
+      const csrfResponse = await axios.get('/api/auth/csrf/');
+      const csrfToken = csrfResponse.data.csrfToken;
+
+      // Make login request with CSRF token
+      const response = await axios.post('/api/auth/login/', credentials, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'X-CSRFToken': csrfToken
+        },
+        withCredentials: true
       });
-      
-      toast.success('Login successful!');
-      return { success: true };
+
+      if (response.data.success) {
+        const { token, user } = response.data;
+        
+        localStorage.setItem('token', token);
+        axios.defaults.headers.common['Authorization'] = `Token ${token}`;
+        
+        dispatch({
+          type: 'LOGIN_SUCCESS',
+          payload: { user, token },
+        });
+        
+        toast.success('Login successful!');
+        return { success: true };
+      } else {
+        throw new Error(response.data.message || 'Login failed');
+      }
     } catch (error) {
       dispatch({ type: 'LOGIN_FAILURE' });
-      const message = error.response?.data?.message || error.response?.data?.error || 'Login failed';
+      const message = error.response?.data?.message || error.response?.data?.error || error.message || 'Login failed';
       toast.error(message);
+      
+      if (error.response?.status === 403 && error.response?.data?.requires_verification) {
+        return { 
+          success: false, 
+          error: message,
+          requiresVerification: true,
+          phoneNumber: error.response?.data?.phone_number
+        };
+      }
+      
       return { success: false, error: message };
     }
   };
 
   const register = async (userData) => {
     try {
-      // Set up headers
-      const headers = {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
+      // Ensure all required fields are present
+      const requiredFields = {
+        email: userData.email,
+        phone_number: userData.phone_number,
+        password: userData.password,
+        password_confirm: userData.password_confirm,
+        first_name: userData.first_name,
+        last_name: userData.last_name,
+        role: userData.role || 'CONTRACTOR', // Default role if not provided
       };
 
-      // Try simple registration first for debugging
-      console.log('Attempting simple registration first...');
-      const testResponse = await axios.post('/api/auth/simple-register/', userData, { headers });
-      console.log('Simple registration response:', testResponse.data);
+      // Optional fields
+      if (userData.company_name) requiredFields.company_name = userData.company_name;
+      if (userData.location) requiredFields.location = userData.location;
+
+      // Get CSRF token first
+      const csrfResponse = await axios.get('/api/auth/csrf/');
+      const csrfToken = csrfResponse.data.csrfToken;
+
+      // Set up headers with CSRF token
+      const headers = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'X-CSRFToken': csrfToken
+      };
+
+      // Log registration attempt for debugging
+      console.log('Attempting registration with data:', requiredFields);
 
       // If simple registration works, try the main registration
       const response = await axios.post('/api/auth/register/', userData, { headers });
@@ -206,11 +251,21 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const verifyOTP = async (phoneNumber, otpCode) => {
+  const verifyOTP = async (phoneNumber, otp) => {
     try {
+      // Get CSRF token first
+      const csrfResponse = await axios.get('/api/auth/csrf/');
+      const csrfToken = csrfResponse.data.csrfToken;
+
       const response = await axios.post('/api/auth/verify-otp/', {
         phone_number: phoneNumber,
-        otp_code: otpCode,
+        otp_code: otp,
+      }, {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrfToken
+        },
+        withCredentials: true
       });
       
       if (response.data.success) {

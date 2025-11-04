@@ -20,7 +20,8 @@ import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
 import ProjectSelectionPage from './pages/ProjectSelectionPage';
-import EstimatePage from './pages/EstimatePage';
+import EstimatePage from './pages/EstimatePageNew';
+import EstimatesPage from './pages/EstimatesPage';
 import ReportsPage from './pages/ReportsPage';
 import SubscriptionPage from './pages/SubscriptionPage';
 import ProfilePage from './pages/ProfilePage';
@@ -49,78 +50,31 @@ function App() {
         <SubscriptionProvider>
           <Router>
             <FaviconLoader />
-            <div className="min-h-screen bg-gray-50 flex flex-col">
+            <div className="min-h-screen flex flex-col">
               <Navbar />
-              
               <main className="flex-1">
                 <Routes>
-                  {/* Add the DataGenerationPage route */}
-                  <Route
-                    path="/data-generation"
-                    element={
-                      <ProtectedRoute>
-                        <DataGenerationPage />
-                      </ProtectedRoute>
-                    }
-                  />
                   {/* Public Routes */}
                   <Route path="/" element={<HomePage />} />
                   <Route path="/login" element={<LoginPage />} />
                   <Route path="/register" element={<RegisterPage />} />
                   
                   {/* Protected Routes */}
-                  <Route path="/dashboard" element={
-                    <ProtectedRoute>
-                      <DashboardPage />
-                    </ProtectedRoute>
-                  } />
-                  
-                  <Route path="/projects" element={
-                    <ProtectedRoute>
-                      <ProjectSelectionPage />
-                    </ProtectedRoute>
-                  } />
-                  
-                  <Route path="/estimate/:id" element={
-                    <ProtectedRoute>
-                      <EstimatePage />
-                    </ProtectedRoute>
-                  } />
-                  
-                  <Route path="/estimate/new" element={
-                    <ProtectedRoute>
-                      <EstimatePage />
-                    </ProtectedRoute>
-                  } />
+                  <Route path="/data-generation" element={<ProtectedRoute><DataGenerationPage /></ProtectedRoute>} />
+                  <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+                  <Route path="/projects" element={<ProtectedRoute><ProjectSelectionPage /></ProtectedRoute>} />
+                  <Route path="/estimates" element={<ProtectedRoute><EstimatesPage /></ProtectedRoute>} />
+                  <Route path="/estimate/:id" element={<ProtectedRoute><EstimatePage /></ProtectedRoute>} />
+                  <Route path="/estimate/new" element={<ProtectedRoute><EstimatePage /></ProtectedRoute>} />
+                  <Route path="/reports" element={<ProtectedRoute><ReportsPage /></ProtectedRoute>} />
+                  <Route path="/subscription" element={<ProtectedRoute><SubscriptionPage /></ProtectedRoute>} />
+                  <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
                   <Route path="/walkthrough" element={<WalkthroughPage />} />
                   
-                  <Route path="/reports" element={
-                    <ProtectedRoute>
-                      <ReportsPage />
-                    </ProtectedRoute>
-                  } />
-                  
-                  <Route path="/subscription" element={
-                    <ProtectedRoute>
-                      <SubscriptionPage />
-                    </ProtectedRoute>
-                  } />
-                  
-                  <Route path="/profile" element={
-                    <ProtectedRoute>
-                      <ProfilePage />
-                    </ProtectedRoute>
-                  } />
-                  
                   {/* Admin Routes */}
-                  <Route path="/admin" element={
-                    <AdminRoute>
-                      <AdminDashboardPage />
-                    </AdminRoute>
-                  } />
+                  <Route path="/admin" element={<AdminRoute><AdminDashboardPage /></AdminRoute>} />
                 </Routes>
               </main>
-              
               <Footer />
               
               {/* Toast Notifications */}
