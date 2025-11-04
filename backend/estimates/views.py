@@ -9,7 +9,7 @@ from django.utils import timezone
 from datetime import timedelta
 import uuid
 
-from .models import Estimate, EstimateItem, EstimateRevision, EstimateShare
+from .models import Estimate, EstimateItem, EstimateRevision, EstimateShare, AIEstimate
 from .serializers import (
     EstimateSerializer, EstimateCreateSerializer, EstimateUpdateSerializer,
     EstimateSummarySerializer, EstimateItemSerializer, EstimateRevisionSerializer,
@@ -17,6 +17,11 @@ from .serializers import (
 )
 from projects.models import ProjectType, Location
 from django.core.exceptions import ObjectDoesNotExist
+from decimal import Decimal
+from .services.gemini_estimator import estimate_construction_cost
+from .tasks import create_gemini_estimate_task
+from celery.result import AsyncResult
+from django.conf import settings
 
 
 class EstimateListView(generics.ListCreateAPIView):
@@ -40,6 +45,10 @@ class EstimateListView(generics.ListCreateAPIView):
         if self.request.method == 'POST':
             return EstimateCreateSerializer
         return EstimateSerializer
+    
+    def perform_create(self, serializer):
+        """Ensure created estimates are associated with the requesting user."""
+        serializer.save(user=self.request.user)
 
 
 class EstimateDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -114,25 +123,48 @@ def calculate_cost(request):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     try:
+        import logging
+        logger = logging.getLogger(__name__)
+        # Log incoming request data for debugging
+        logger.info('calculate_cost request.data: %s', request.data)
+        logger.info('calculate_cost validated_data: %s', serializer.validated_data)
+
         project_type = get_object_or_404(ProjectType, id=serializer.validated_data['project_type_id'])
-        location = get_object_or_404(Location, id=serializer.validated_data['location_id'])
+
+        # Location lookup: accept either PK or county_code (e.g., '001')
+        location_id = serializer.validated_data['location_id']
+        try:
+            location = Location.objects.get(pk=location_id)
+        except Exception:
+            # try by county_code (zero-pad numeric ids)
+            county_code = str(location_id).zfill(3)
+            try:
+                location = Location.objects.get(county_code=county_code)
+            except Exception:
+                # Re-raise to be handled by outer exception block
+                raise
         total_area = serializer.validated_data['total_area']
         contingency_percentage = serializer.validated_data.get('contingency_percentage', 10.00)
         custom_items = serializer.validated_data.get('custom_items', [])
 
-        # Calculate base cost
-        base_cost_per_sqm = project_type.base_cost_per_sqm
-        adjusted_cost_per_sqm = base_cost_per_sqm * location.cost_multiplier
-        total_estimated_cost = adjusted_cost_per_sqm * total_area
+        # Calculate base cost (use Decimal arithmetic)
+        base_cost_per_sqm = Decimal(project_type.base_cost_per_sqm)
+        location_multiplier = Decimal(location.cost_multiplier)
+        adjusted_cost_per_sqm = (base_cost_per_sqm * location_multiplier)
+        total_area_dec = Decimal(total_area)
+        total_estimated_cost = (adjusted_cost_per_sqm * total_area_dec)
 
         # Calculate contingency
-        contingency_amount = (total_estimated_cost * contingency_percentage) / 100
+        contingency_percentage_dec = Decimal(contingency_percentage)
+        contingency_amount = (total_estimated_cost * contingency_percentage_dec) / Decimal('100')
 
         # Calculate custom items total
-        custom_items_total = 0
+        custom_items_total = Decimal('0')
         if custom_items:
             for item in custom_items:
-                custom_items_total += item['quantity'] * item['unit_price']
+                qty = Decimal(str(item.get('quantity', 0)))
+                unit_price = Decimal(str(item.get('unit_price', 0)))
+                custom_items_total += qty * unit_price
 
         # Final total
         final_total = total_estimated_cost + contingency_amount + custom_items_total
@@ -141,29 +173,30 @@ def calculate_cost(request):
             'project_type': {
                 'id': project_type.id,
                 'name': project_type.name,
-                'base_cost_per_sqm': base_cost_per_sqm
+                'base_cost_per_sqm': float(base_cost_per_sqm)
             },
             'location': {
                 'id': location.id,
-                'name': location.name,
-                'cost_multiplier': location.cost_multiplier
+                'county_code': location.county_code,
+                'name': location.county_name,
+                'cost_multiplier': float(location_multiplier)
             },
             'calculations': {
-                'total_area': total_area,
-                'base_cost_per_sqm': base_cost_per_sqm,
-                'adjusted_cost_per_sqm': adjusted_cost_per_sqm,
-                'base_total_cost': total_estimated_cost,
-                'contingency_percentage': contingency_percentage,
-                'contingency_amount': contingency_amount,
-                'custom_items_total': custom_items_total,
-                'final_total_cost': final_total
+                'total_area': float(total_area_dec),
+                'base_cost_per_sqm': float(base_cost_per_sqm),
+                'adjusted_cost_per_sqm': float(adjusted_cost_per_sqm),
+                'base_total_cost': float(total_estimated_cost),
+                'contingency_percentage': float(contingency_percentage_dec),
+                'contingency_amount': float(contingency_amount),
+                'custom_items_total': float(custom_items_total),
+                'final_total_cost': float(final_total)
             },
             'breakdown': {
-                'materials': total_estimated_cost * 0.60,  # 60% materials
-                'labor': total_estimated_cost * 0.30,      # 30% labor
-                'equipment': total_estimated_cost * 0.10,  # 10% equipment
-                'contingency': contingency_amount,
-                'custom_items': custom_items_total
+                'materials': float((total_estimated_cost * Decimal('0.60'))),  # 60% materials
+                'labor': float((total_estimated_cost * Decimal('0.30'))),      # 30% labor
+                'equipment': float((total_estimated_cost * Decimal('0.10'))),  # 10% equipment
+                'contingency': float(contingency_amount),
+                'custom_items': float(custom_items_total)
             }
         })
 
@@ -503,6 +536,283 @@ def upload_estimate(request):
 
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_estimate_with_gemini(request):
+    """Create an estimate using Gemini AI based on project details"""
+    
+    import logging
+    import sys
+    logger = logging.getLogger(__name__)
+    
+    # Print to console for immediate visibility
+    print("\n" + "="*80)
+    print("=== CREATE ESTIMATE WITH GEMINI REQUEST RECEIVED ===")
+    print("="*80)
+    print(f"Request method: {request.method}")
+    print(f"Request path: {request.path}")
+    print(f"User: {request.user} (ID: {request.user.id if hasattr(request.user, 'id') else 'N/A'})")
+    print(f"User authenticated: {request.user.is_authenticated}")
+    print(f"Request data: {request.data}")
+    print(f"Request META keys: {list(request.META.keys())[:10]}...")
+    print(f"Content-Type: {request.META.get('CONTENT_TYPE', 'N/A')}")
+    print(f"HTTP_AUTHORIZATION: {request.META.get('HTTP_AUTHORIZATION', 'N/A')[:50]}...")
+    print("="*80 + "\n")
+    
+    # Also log using logger
+    logger.info('=== CREATE ESTIMATE WITH GEMINI REQUEST ===')
+    logger.info(f'Request method: {request.method}')
+    logger.info(f'Request path: {request.path}')
+    logger.info(f'User: {request.user}')
+    logger.info(f'User authenticated: {request.user.is_authenticated}')
+    logger.info(f'Request data: {request.data}')
+    logger.info(f'Request headers: {dict(request.headers)}')
+    
+    # Validate required fields
+    required_fields = ['project_name', 'data_period', 'building_type', 'construction_type', 'location_id']
+    missing_fields = [field for field in required_fields if field not in request.data]
+    if missing_fields:
+        error_msg = f'Missing required fields: {missing_fields}'
+        print(f"ERROR: {error_msg}")
+        logger.error(error_msg)
+        return Response(
+            {'error': f'Missing required fields: {", ".join(missing_fields)}'}, 
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    print(f"✓ All required fields present")
+    
+    try:
+        print("Starting location lookup...")
+        # Get location - can be ID or county_code
+        location_id = request.data.get('location_id')
+        print(f"Location ID received: {location_id} (type: {type(location_id)})")
+        location = None
+        
+        # Try to get by ID first
+        if location_id:
+            try:
+                # Check if it's a numeric ID
+                if isinstance(location_id, (int, str)) and str(location_id).isdigit():
+                    location = Location.objects.get(pk=int(location_id))
+                # If not numeric, try as county_code
+                elif isinstance(location_id, str) and len(location_id) == 3:
+                    location = Location.objects.get(county_code=location_id)
+                # Try to find by county name
+                else:
+                    location = Location.objects.filter(county_name__iexact=str(location_id)).first()
+            except (Location.DoesNotExist, ValueError):
+                # Try as county_code
+                try:
+                    location = Location.objects.get(county_code=str(location_id).zfill(3))
+                except Location.DoesNotExist:
+                    # Try by county name
+                    location = Location.objects.filter(county_name__iexact=str(location_id)).first()
+        
+        if not location:
+            error_msg = f'Location not found for location_id: {location_id}'
+            print(f"ERROR: {error_msg}")
+            print(f"Available locations count: {Location.objects.count()}")
+            logger.error(error_msg)
+            logger.error(f'Available locations count: {Location.objects.count()}')
+            return Response(
+                {'error': f'Location not found for "{location_id}". Please provide a valid location_id or ensure locations are populated in the database. Run: python manage.py populate_locations'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        location_info = f'Location found: {location.county_name} (ID: {location.id}, Code: {location.county_code})'
+        print(f"✓ {location_info}")
+        logger.info(location_info)
+        
+        # Get or create project type based on building type
+        building_type = request.data.get('building_type')
+        # Try to find an existing project type with this category
+        project_type = ProjectType.objects.filter(category=building_type, is_active=True).first()
+        
+        # If not found, create a new one
+        if not project_type:
+            project_type = ProjectType.objects.create(
+                name=f'{building_type.title()} Project',
+                category=building_type,
+                base_cost_per_sqm=Decimal('50000.00'),  # Default base cost
+                description=f'Standard {building_type} construction project'
+            )
+        
+        # Prepare project details for Gemini
+        project_details = {
+            'project_name': request.data.get('project_name'),
+            'building_type': building_type,
+            'construction_type': request.data.get('construction_type'),
+            'data_period': request.data.get('data_period'),
+            'location_name': location.county_name,
+            'total_area': float(request.data.get('total_area', 100)),
+            'project_description': request.data.get('project_description', '')
+        }
+        
+        # Generate estimate using Gemini
+        print("Calling Gemini API with project details...")
+        logger.info('Calling Gemini API with project details...')
+        try:
+            gemini_result = estimate_construction_cost(project_details)
+            print("✓ Gemini API call completed")
+            logger.info('Gemini API call completed')
+        except Exception as gemini_error:
+            error_msg = f'Gemini API call failed: {str(gemini_error)}'
+            print(f"ERROR: {error_msg}")
+            logger.exception('Gemini API call failed: %s', gemini_error)
+            return Response(
+                {'error': f'Failed to generate estimate using AI: {str(gemini_error)}. Please check GEMINI_API_KEY configuration.'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        
+        if not gemini_result:
+            error_msg = 'Gemini API returned None result'
+            print(f"ERROR: {error_msg}")
+            logger.error(error_msg)
+            return Response(
+                {'error': 'Failed to generate estimate using AI. The API returned an empty response. Please try again.'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        
+        print("✓ Gemini result received successfully")
+        logger.info('Gemini result received successfully')
+        
+        # Extract cost analysis data
+        cost_analysis = gemini_result.get('cost_analysis', {})
+        base_cost_per_sqm = Decimal(str(cost_analysis.get('base_cost_per_sqm', 50000)))
+        location_multiplier = Decimal(str(location.cost_multiplier))
+        adjusted_cost_per_sqm = Decimal(str(cost_analysis.get('adjusted_cost_per_sqm', base_cost_per_sqm * location_multiplier)))
+        
+        total_area = Decimal(str(request.data.get('total_area', 100)))
+        contingency_percentage = Decimal(str(request.data.get('contingency_percentage', 10.0)))
+        
+        # Create the estimate
+        estimate = Estimate.objects.create(
+            user=request.user,
+            project_type=project_type,
+            location=location,
+            project_name=request.data.get('project_name'),
+            project_description=request.data.get('project_description', ''),
+            building_type=building_type,
+            construction_type=request.data.get('construction_type'),
+            data_period=request.data.get('data_period'),
+            total_area=total_area,
+            base_cost_per_sqm=base_cost_per_sqm,
+            location_multiplier=location_multiplier,
+            contingency_percentage=contingency_percentage,
+            source='gemini_ai'
+        )
+        
+        # Create AI estimate record
+        ai_estimate = AIEstimate.objects.create(
+            estimate=estimate,
+            base_cost_per_sqm=base_cost_per_sqm,
+            location_multiplier=location_multiplier,
+            adjusted_cost_per_sqm=adjusted_cost_per_sqm,
+            materials_breakdown=gemini_result.get('breakdown', {}).get('materials', {}),
+            labor_breakdown=gemini_result.get('breakdown', {}).get('labor', {}),
+            equipment_details=gemini_result.get('breakdown', {}).get('equipment', {}),
+            recommendations=gemini_result.get('recommendations', []),
+            risk_factors=gemini_result.get('risk_factors', []),
+            confidence_score=Decimal('85.00')  # Default confidence score
+        )
+        
+        # Return the created estimate with AI details
+        estimate_serializer = EstimateSerializer(estimate)
+        
+        print("✓ Estimate created successfully!")
+        print(f"  Estimate ID: {estimate.id}")
+        print(f"  Project Name: {estimate.project_name}")
+        print(f"  Total Cost: {estimate.total_estimated_cost}")
+        print("="*80)
+        print("REQUEST COMPLETED SUCCESSFULLY")
+        print("="*80 + "\n")
+        
+        return Response({
+            'estimate': estimate_serializer.data,
+            'ai_estimate': {
+                'materials_breakdown': ai_estimate.materials_breakdown,
+                'labor_breakdown': ai_estimate.labor_breakdown,
+                'equipment_details': ai_estimate.equipment_details,
+                'recommendations': ai_estimate.recommendations,
+                'risk_factors': ai_estimate.risk_factors,
+                'confidence_score': float(ai_estimate.confidence_score)
+            }
+        }, status=status.HTTP_201_CREATED)
+        
+    except Exception as e:
+        error_type = type(e).__name__
+        error_details = str(e)
+        
+        print("\n" + "="*80)
+        print("ERROR OCCURRED!")
+        print("="*80)
+        print(f"Error type: {error_type}")
+        print(f"Error message: {error_details}")
+        import traceback
+        print("Traceback:")
+        traceback.print_exc()
+        print("="*80 + "\n")
+        
+        logger.exception('Error creating estimate with Gemini: %s', e)
+        
+        # Check if it's a Gemini API error
+        if 'GEMINI_API_KEY' in error_details or 'api_key' in error_details.lower():
+            logger.error('Gemini API key issue detected')
+            return Response(
+                {'error': 'Gemini API configuration error. Please check GEMINI_API_KEY in environment variables.'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        
+        return Response(
+            {'error': f'Failed to create estimate: {error_type}: {error_details}'}, 
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_estimate_with_gemini_async(request):
+    """Enqueue a background Celery task to create an estimate using Gemini and return 202 with task id."""
+    # Validate required fields (reuse same validation)
+    required_fields = ['project_name', 'data_period', 'building_type', 'construction_type', 'location_id']
+    missing_fields = [field for field in required_fields if field not in request.data]
+    if missing_fields:
+        return Response({'error': f'Missing required fields: {missing_fields}'}, status=status.HTTP_400_BAD_REQUEST)
+
+    project_details = {
+        'project_name': request.data.get('project_name'),
+        'building_type': request.data.get('building_type'),
+        'construction_type': request.data.get('construction_type'),
+        'data_period': request.data.get('data_period'),
+        'location_id': request.data.get('location_id'),
+        'total_area': request.data.get('total_area', 100),
+        'project_description': request.data.get('project_description', ''),
+        'contingency_percentage': request.data.get('contingency_percentage', 10.0)
+    }
+
+    # Enqueue task
+    task = create_gemini_estimate_task.delay(request.user.id, project_details)
+
+    return Response({'task_id': task.id, 'status': 'queued'}, status=status.HTTP_202_ACCEPTED)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def estimate_task_status(request, task_id):
+    """Poll Celery task status and return result when ready."""
+    try:
+        async_res = AsyncResult(task_id)
+        result = None
+        if async_res.ready():
+            result = async_res.result
+            return Response({'task_id': task_id, 'status': async_res.status, 'result': result}, status=status.HTTP_200_OK)
+        else:
+            return Response({'task_id': task_id, 'status': async_res.status}, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({'task_id': task_id, 'status': 'error', 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 

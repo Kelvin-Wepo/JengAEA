@@ -141,54 +141,84 @@ class UserRegistrationView(generics.CreateAPIView):
             return {'success': False, 'message': str(e)}
 
 
-@method_decorator(csrf_exempt, name='dispatch')
 class UserLoginView(generics.GenericAPIView):
     """User login endpoint"""
-    
+
     permission_classes = [permissions.AllowAny]
-    
+
+    def dispatch(self, request, *args, **kwargs):
+        """Log request details for debugging"""
+        logger.debug("=== Login Request Debug Info ===")
+        logger.debug(f"Request method: {request.method}")
+        logger.debug(f"Request headers: {dict(request.headers)}")
+        if request.method in ['POST', 'PUT', 'PATCH']:
+            try:
+                body = request.body.decode('utf-8')
+                logger.debug(f"Request body: {body}")
+            except Exception as e:
+                logger.debug(f"Could not decode request body: {str(e)}")
+        logger.debug("=== End Debug Info ===")
+        return super().dispatch(request, *args, **kwargs)
+
     def post(self, request, *args, **kwargs):
-        email = request.data.get('email')
-        password = request.data.get('password')
-        
+        """Handle user login"""
+        logger.debug("=== Processing Login Request ===")
+        try:
+            data = request.data
+            logger.debug(f"Processed request data: {data}")
+        except Exception as e:
+            logger.error(f"Error processing request data: {str(e)}")
+            return Response({
+                'success': False,
+                'message': 'Invalid request format'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        email = data.get('email')
+        password = data.get('password')
+
         if not email or not password:
+            logger.warning("Login attempt with missing credentials")
             return Response({
                 'success': False,
                 'message': 'Email and password are required'
             }, status=status.HTTP_400_BAD_REQUEST)
-        
+
         try:
             # Authenticate user
+            logger.debug(f"Attempting to authenticate user: {email}")
             user = authenticate(request, username=email, password=password)
-            
+
             if user is None:
+                logger.warning(f"Failed login attempt for email: {email}")
                 return Response({
                     'success': False,
                     'message': 'Invalid email or password'
                 }, status=status.HTTP_401_UNAUTHORIZED)
-            
+
             # Check if user is verified
             if not user.is_verified:
+                logger.info(f"Unverified user login attempt: {email}")
                 return Response({
                     'success': False,
                     'message': 'Please verify your phone number first',
                     'phone_number': user.phone_number,
                     'requires_verification': True
                 }, status=status.HTTP_403_FORBIDDEN)
-            
+
             # Login user
             login(request, user)
-            
+
             # Get or create token
             token, created = AuthToken.objects.get_or_create(user=user)
-            
+
+            logger.info(f"Successful login for user: {email}")
             return Response({
                 'success': True,
                 'message': 'Login successful',
                 'token': token.key,
                 'user': UserProfileSerializer(user).data
             }, status=status.HTTP_200_OK)
-            
+
         except Exception as e:
             logger.error(f"Login error: {str(e)}", exc_info=True)
             return Response({
@@ -261,9 +291,12 @@ def send_otp(request):
 
 @api_view(['POST'])
 @permission_classes([permissions.AllowAny])
-@csrf_exempt
 def verify_otp(request):
     """Verify OTP code"""
+    logger.debug("=== OTP Verification Debug Info ===")
+    logger.debug(f"Request data: {request.data}")
+    logger.debug(f"Request headers: {dict(request.headers)}")
+    logger.debug("=== End Debug Info ===")
     
     phone_number = request.data.get('phone_number')
     otp_code = request.data.get('otp_code')

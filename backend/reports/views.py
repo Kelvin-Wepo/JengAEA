@@ -159,7 +159,7 @@ def generate_pdf_report(estimate, options):
     project_info = [
         ['Project Name:', estimate.project_name],
         ['Project Type:', estimate.project_type.name],
-        ['Location:', estimate.location.name],
+        ['Location:', estimate.location.county_name],
         ['Total Area:', f"{estimate.total_area} sqm"],
         ['Generated Date:', timezone.now().strftime('%Y-%m-%d %H:%M:%S')]
     ]
@@ -263,7 +263,7 @@ def generate_excel_report(estimate, options):
     project_info = [
         ['Project Name:', estimate.project_name],
         ['Project Type:', estimate.project_type.name],
-        ['Location:', estimate.location.name],
+        ['Location:', estimate.location.county_name],
         ['Total Area:', f"{estimate.total_area} sqm"],
         ['Generated Date:', timezone.now().strftime('%Y-%m-%d %H:%M:%S')]
     ]
@@ -359,7 +359,7 @@ def generate_csv_report(estimate, options):
     writer.writerow(['Project Information'])
     writer.writerow(['Project Name', estimate.project_name])
     writer.writerow(['Project Type', estimate.project_type.name])
-    writer.writerow(['Location', estimate.location.name])
+    writer.writerow(['Location', estimate.location.county_name])
     writer.writerow(['Total Area', f"{estimate.total_area} sqm"])
     writer.writerow(['Generated Date', timezone.now().strftime('%Y-%m-%d %H:%M:%S')])
     writer.writerow([])

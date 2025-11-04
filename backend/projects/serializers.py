@@ -36,7 +36,7 @@ class MaterialPriceSerializer(serializers.ModelSerializer):
     """Serializer for material prices"""
     
     material_name = serializers.CharField(source='material.name', read_only=True)
-    location_name = serializers.CharField(source='location.name', read_only=True)
+    location_name = serializers.CharField(source='location.county_name', read_only=True)
     
     class Meta:
         model = MaterialPrice
@@ -55,7 +55,7 @@ class LaborPriceSerializer(serializers.ModelSerializer):
     """Serializer for labor prices"""
     
     category_name = serializers.CharField(source='category.name', read_only=True)
-    location_name = serializers.CharField(source='location.name', read_only=True)
+    location_name = serializers.CharField(source='location.county_name', read_only=True)
     
     class Meta:
         model = LaborPrice

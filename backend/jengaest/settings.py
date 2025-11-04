@@ -5,6 +5,7 @@ Django settings for jengaest project.
 from pathlib import Path
 from decouple import config
 import os
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -17,12 +18,54 @@ DEBUG = config('DEBUG', default=True, cast=bool)
 
 ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0', 'testserver']
 
-# CORS settings
+# CORS and CSRF settings
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3001",
+]
+
+# Ensure CORS handles preflight requests properly
+CORS_PREFLIGHT_MAX_AGE = 86400  # 24 hours
+
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3001",
+]
+
+# Session settings
+SESSION_COOKIE_SECURE = False  # Set to True in production
+CSRF_COOKIE_SECURE = False    # Set to True in production
+CSRF_COOKIE_HTTPONLY = False  # Required for AJAX requests
+CSRF_USE_SESSIONS = False
+
+# Additional CORS settings
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
+
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+    'access-control-request-method',
+    'access-control-request-headers',
 ]
 
 # Application definition
@@ -45,9 +88,11 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
-    'django.middleware.common.CommonMiddleware',
+    'estimates.middleware.RequestLoggingMiddleware',  # Add request logging
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.common.CommonMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -74,27 +119,23 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'jengaest.wsgi.application'
 
+
 # Database
-# Use SQLite for development (easier setup)
+
+# Load .env file
+load_dotenv(os.path.join(BASE_DIR, '.env'))
+
+# Now use os.getenv() instead of config()
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.getenv('DB_NAME', 'Jenga'),
+        'USER': os.getenv('DB_USER', 'Jenga'),
+        'PASSWORD': os.getenv('DB_PASSWORD', 'Access'),
+        'HOST': os.getenv('DB_HOST', 'localhost'),
+        'PORT': os.getenv('DB_PORT', '5432'),
     }
 }
-
-# Uncomment below for PostgreSQL in production
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.postgresql',
-#         'NAME': config('DB_NAME', default='jengaest'),
-#         'USER': config('DB_USER', default='postgres'),
-#         'PASSWORD': config('DB_PASSWORD', default='password'),
-#         'HOST': config('DB_HOST', default='localhost'),
-#         'PORT': config('DB_PORT', default='5432'),
-#     }
-# }
-
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -163,14 +204,9 @@ REST_FRAMEWORK = {
     'UNAUTHENTICATED_TOKEN': None, 
 }
 
-# CORS settings
-CORS_ORIGIN_ALLOW_ALL = True
-CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOW_ALL_ORIGINS = True
-
-# Allow all headers and methods for development
-CORS_ALLOW_HEADERS = ['*']
-CORS_ALLOW_METHODS = ['*']
+# CORS settings - Use django-cors-headers configuration
+# Note: CORS_ALLOW_ALL_ORIGINS and CORS_ORIGIN_ALLOW_ALL are duplicates
+# We use the settings from the top of the file which are correct
 
 # Disable CSRF for development
 CSRF_TRUSTED_ORIGINS = [
@@ -200,9 +236,16 @@ AFRICAS_TALKING_TEST_NUMBERS = [
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {message}',
+            'style': '{',
+        },
+    },
     'handlers': {
         'console': {
             'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
         },
     },
     'loggers': {
@@ -210,6 +253,26 @@ LOGGING = {
             'handlers': ['console'],
             'level': 'DEBUG',
         },
+        'estimates': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+        },
+        'estimates.views': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+        },
+        'estimates.middleware': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+        },
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
     },
 }
 

@@ -52,6 +52,7 @@ class EstimateSerializer(serializers.ModelSerializer):
         fields = (
             'id', 'user', 'user_data', 'project_type', 'project_type_data', 'location', 'location_data',
             'project_template', 'project_template_data', 'project_name', 'project_description',
+            'construction_type', 'building_type', 'data_period',
             'total_area', 'base_cost_per_sqm', 'location_multiplier', 'adjusted_cost_per_sqm',
             'total_estimated_cost', 'contingency_percentage', 'contingency_amount',
             'source', 'original_filename',
@@ -70,7 +71,7 @@ class EstimateCreateSerializer(serializers.ModelSerializer):
         fields = (
             'project_type', 'location', 'project_template', 'project_name', 'project_description',
             'total_area', 'base_cost_per_sqm', 'location_multiplier', 'contingency_percentage',
-            'items'
+            'items', 'building_type', 'construction_type', 'data_period'
         )
         
     def create(self, validated_data):
@@ -118,7 +119,7 @@ class EstimateSummarySerializer(serializers.ModelSerializer):
     """Lightweight serializer for estimate summaries"""
     
     project_type_name = serializers.CharField(source='project_type.name', read_only=True)
-    location_name = serializers.CharField(source='location.name', read_only=True)
+    location_name = serializers.CharField(source='location.county_name', read_only=True)
     user_name = serializers.CharField(source='user.get_full_name', read_only=True)
     
     class Meta:

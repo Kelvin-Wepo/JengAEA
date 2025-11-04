@@ -5,8 +5,15 @@ from .views import (
     send_otp, verify_otp, user_logout, user_dashboard, simple_register
 )
 
+from django.middleware.csrf import get_token
+from django.http import JsonResponse
+
+def get_csrf_token(request):
+    return JsonResponse({'csrfToken': get_token(request)})
+
 urlpatterns = [
     path('test/', lambda request: HttpResponse("Test endpoint working"), name='test'),
+    path('csrf/', get_csrf_token, name='get_csrf_token'),
     path('simple-register/', simple_register, name='simple_register'),
     path('register/', UserRegistrationView.as_view(), name='user_register'),
     path('login/', UserLoginView.as_view(), name='user_login'),
